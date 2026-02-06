@@ -1,0 +1,16 @@
+# Build output
+dist/
+bundle.js
+
+# Dependencies
+node_modules/
+
+# Static Assets
+src/assets/
+*.png
+*.jpg
+*.svg
+
+# System files
+package-lock.json
+.DS_Store

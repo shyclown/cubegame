@@ -26,7 +26,7 @@ body {
   height: 486px;
   box-sizing: border-box;
   transform-style: preserve-3d;
-  background-image: url('floor.jpg');
+  background-image: url('../../floor.jpg');
   background-size:contain;
   background-repeat: no-repeat;
 }
@@ -48,7 +48,7 @@ body {
   height:52px;
   position: absolute;
   transform: rotateX(120deg) rotateY(180deg) translateY(15px) translateZ(22px);
-  background-image: url('grass.png');
+  background-image: url('../../grass.png');
   background-position: top;
   background-size: contain;
   background-repeat: no-repeat;
