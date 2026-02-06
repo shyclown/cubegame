@@ -55,31 +55,51 @@
     }
   }
 
+  /**
+   * Advanced Game Bot with Minimax, Alpha-Beta Pruning, and Memoization
+   */
   class GameBot {
     constructor(manager, playerId, difficulty = 'hard') {
       this.manager = manager;
       this.playerId = playerId;
       this.opponentId = playerId === 1 ? 2 : 1;
       this.difficulty = difficulty;
-      this.maxDepth = 3; // How many moves to look ahead
+      this.maxDepth = 3;
+      this.memo = new Map();
     }
 
-    // 1. Core Turn Logic
+    getBoardHash() {
+      let hash = "";
+      for (let r = 0; r < 9; r++) {
+        for (let c = 0; c < 9; c++) {
+          const p = this.manager.grid[r][c].element.player;
+          if (p) hash += `${r}${c}${p}`;
+        }
+      }
+      return hash;
+    }
+
     takeTurn() {
+      this.memo.clear();
       const moves = this.getAvailableMoves();
       if (moves.length === 0) return;
 
+      // Move Ordering: Essential for Alpha-Beta Speed
+      moves.sort((a, b) => {
+        const aOff = this.simulatePointCheck(a.r, a.c, this.playerId);
+        const aDef = this.simulatePointCheck(a.r, a.c, this.opponentId);
+        const bOff = this.simulatePointCheck(b.r, b.c, this.playerId);
+        const bDef = this.simulatePointCheck(b.r, b.c, this.opponentId);
+        return (bOff * 2 + bDef) - (aOff * 2 + aDef);
+      });
+
       let bestScore = -Infinity;
       let bestMove = moves[0];
-
-      // Move Ordering: Check moves near existing pieces first to speed up Pruning
-      moves.sort((a, b) => this.calculateProximity(b.r, b.c) - this.calculateProximity(a.r, a.c));
 
       for (const move of moves) {
         move.tile.element.placed = true;
         move.tile.element.player = this.playerId;
 
-        // Look ahead using Minimax
         const score = this.minimax(this.maxDepth - 1, false, -Infinity, Infinity);
 
         move.tile.element.placed = false;
@@ -96,83 +116,94 @@
       }, 600);
     }
 
-    // 2. Minimax with Alpha-Beta Pruning
     minimax(depth, isMaximizing, alpha, beta) {
+      const hash = this.getBoardHash() + depth + isMaximizing;
+      if (this.memo.has(hash)) return this.memo.get(hash);
+
       if (depth === 0) return this.evaluateBoard();
 
       const moves = this.getAvailableMoves();
+      if (moves.length === 0) return this.evaluateBoard();
+
+      let result;
       if (isMaximizing) {
         let maxEval = -Infinity;
         for (const move of moves) {
           move.tile.element.placed = true;
           move.tile.element.player = this.playerId;
-          let evalScore = this.minimax(depth - 1, false, alpha, beta);
+          maxEval = Math.max(maxEval, this.minimax(depth - 1, false, alpha, beta));
           move.tile.element.placed = false;
-          maxEval = Math.max(maxEval, evalScore);
-          alpha = Math.max(alpha, evalScore);
+          alpha = Math.max(alpha, maxEval);
           if (beta <= alpha) break;
         }
-        return maxEval;
+        result = maxEval;
       } else {
         let minEval = Infinity;
         for (const move of moves) {
           move.tile.element.placed = true;
           move.tile.element.player = this.opponentId;
-          let evalScore = this.minimax(depth - 1, true, alpha, beta);
+          minEval = Math.min(minEval, this.minimax(depth - 1, true, alpha, beta));
           move.tile.element.placed = false;
-          minEval = Math.min(minEval, evalScore);
-          beta = Math.min(beta, evalScore);
+          beta = Math.min(beta, minEval);
           if (beta <= alpha) break;
         }
-        return minEval;
+        result = minEval;
       }
+      this.memo.set(hash, result);
+      return result;
     }
 
-    // 3. Scoring Heuristic (Detects Combos)
     evaluateBoard() {
       let score = 0;
       for (let r = 0; r < 9; r++) {
         for (let c = 0; c < 9; c++) {
-          if (!this.manager.grid[r][c].element.placed) {
+          const tileEl = this.manager.grid[r][c].element;
+          if (tileEl.placed) {
+            // Score existing pieces
+            if (tileEl.player === this.playerId) {
+              score += 10; // Value for owning a tile
+            } else {
+              score -= 10;
+            }
+          } else {
+            // Score potential moves
             const botGain = this.simulatePointCheck(r, c, this.playerId);
             const plyGain = this.simulatePointCheck(r, c, this.opponentId);
 
-            // Focus on getting and blocking combos
-            score += (botGain > 1 ? botGain * 800 : botGain * 100);
-            score -= (plyGain > 1 ? plyGain * 900 : plyGain * 120);
+            if (botGain > 0) score += (botGain * 200) + (botGain > 1 ? 1000 : 0);
+            if (plyGain > 0) score -= (plyGain * 250) + (plyGain > 1 ? 1200 : 0);
           }
         }
       }
       return score;
     }
 
-    // 4. FIX: The missing Proximity function
-    calculateProximity(row, col) {
-      let weight = 0;
-      for (let dr = -1; dr <= 1; dr++) {
-        for (let dc = -1; dc <= 1; dc++) {
-          const nR = row + dr, nC = col + dc;
-          if (nR >= 0 && nR < 9 && nC >= 0 && nC < 9) {
-            if (this.manager.grid[nR][nC].element.placed) weight += 10;
-          }
-        }
-      }
-      return weight;
-    }
-
-    // 5. Spatial Optimization (Only check moves near active play)
     getAvailableMoves() {
       const moves = [];
-      const isBoardEmpty = !this.manager.grid.some(row => row.some(t => t.element.placed));
+      const boardEmpty = !this.manager.grid.some(row => row.some(t => t.element.placed));
+
+      if (boardEmpty) return [{ r: 4, c: 4, tile: this.manager.grid[4][4] }];
 
       for (let r = 0; r < 9; r++) {
         for (let c = 0; c < 9; c++) {
           const tile = this.manager.grid[r][c];
-          if (!tile.element.placed) {
-            // Optimization: Only check tiles within 2 spaces of an existing piece
-            if (isBoardEmpty || this.hasNeighbor(r, c, 2)) {
-              moves.push({ r, c, tile });
-            }
+          // Dist 1 ensures it stays tightly packed to the action
+          if (!tile.element.placed && this.hasNeighbor(r, c, 1)) {
+            moves.push({ r, c, tile });
+          }
+        }
+      }
+
+      // Fallback: If no moves are "near", allow any move (prevents getting stuck)
+      return moves.length > 0 ? moves : this.getAllEmpty();
+    }
+
+    getAllEmpty() {
+      const moves = [];
+      for (let r = 0; r < 9; r++) {
+        for (let c = 0; c < 9; c++) {
+          if (!this.manager.grid[r][c].element.placed) {
+            moves.push({ r, c, tile: this.manager.grid[r][c] });
           }
         }
       }
@@ -194,10 +225,10 @@
     simulatePointCheck(row, col, plyId) {
       let connections = 0;
       const patterns = [
-        [[0,-1], [0,-2]], [[0,1], [0,2]], [[0,-1], [0,1]], // H
-        [[1,0], [2,0]], [[-1,0], [-2,0]], [[1,0], [-1,0]], // V
-        [[1,1], [2,2]], [[-1,-1], [-2,-2]], [[1,1], [-1,-1]], // D1
-        [[1,-1], [2,-2]], [[-1,1], [-2,2]], [[1,-1], [-1,1]]  // D2
+        [[0,-1], [0,-2]], [[0,1], [0,2]], [[0,-1], [0,1]],
+        [[1,0], [2,0]], [[-1,0], [-2,0]], [[1,0], [-1,0]],
+        [[1,1], [2,2]], [[-1,-1], [-2,-2]], [[1,1], [-1,-1]],
+        [[1,-1], [2,-2]], [[-1,1], [-2,2]], [[1,-1], [-1,1]]
       ];
       patterns.forEach(p => {
         const match = p.every(off => {
