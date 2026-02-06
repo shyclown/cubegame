@@ -23,14 +23,14 @@
 <div id="gamewrap">
   <div id="game"></div>
 </div>
+<div id="game-messages"></div>
 </body>
 <script>
   /**
-   * Utility Helper Class
+   * Utility Helpers
    */
   class DomUtils {
     static get(id) { return document.getElementById(id); }
-
     static make(tag, className) {
       const el = document.createElement(tag);
       if (className) el.className = className;
@@ -39,186 +39,24 @@
   }
 
   /**
-   * Game Configuration & Data State
+   * Configuration and State
    */
   class GameConfig {
     constructor() {
-      this.map = Array(9).fill().map(() => Array(9).fill(1));
       this.boxSize = 54;
+      this.rows = 9;
+      this.cols = 9;
       this.players = {
-        1: { name: 'Player One', score: 0, color: '#000' },
-        2: { name: 'Player Two', score: 0, color: '#444' }
+        1: { name: 'Player One', score: 0, class: 'playerOne' },
+        2: { name: 'Player Two', score: 0, class: 'playerTwo' }
       };
       this.dom = {
         wrap: DomUtils.get('gamewrap'),
         game: DomUtils.get('game'),
-        scoreOne: DomUtils.get('score-one')
+        scoreOne: DomUtils.get('score-one'),
+        scoreTwo: DomUtils.get('score-two'),
+        msgBox: DomUtils.get('game-messages')
       };
-    }
-  }
-
-  /**
-   * Main Game Controller
-   */
-  class GameEngine {
-    constructor() {
-      this.config = new GameConfig();
-      this.grid = [];
-      this.currentPlayer = 1;
-      this.prevSelected = null;
-      this.selected = { square: null, x: 0, y: 0 };
-
-      this.camera = { degX: 54, degY: -29 };
-      this.mouse = { x: 0, y: 0 };
-
-      // Optimization: Track the "target" rotation separately from "current"
-      this.targetX = 54;
-      this.targetY = -29;
-      this.ticking = false;
-
-      this.init();
-    }
-
-    init() {
-      const rows = this.config.map.length;
-      const cols = this.config.map[0].length;
-
-      // Build the grid based on the map
-      for (let i = 0; i < rows; i++) {
-        this.grid[i] = [];
-        for (let j = 0; j < cols; j++) {
-          const tile = new Tile(j, i, this.config.boxSize, this);
-          this.grid[i].push(tile);
-        }
-      }
-
-      // Global Listeners
-      document.addEventListener('mousedown', (e) => this.onMouseDown(e));
-      this.config.dom.game.addEventListener('click', () => this.placeBox());
-    }
-
-    placeBox() {
-      const target = this.selected.square;
-      if (!target || target.placed) return;
-
-      const userB = new UserBox(this);
-      target.appendChild(userB.el);
-
-      target.placed = true;
-      target.player = this.currentPlayer;
-
-      const pointsBefore = this.config.players[this.currentPlayer].score;
-      this.checkPoints();
-
-      // If they scored, trigger the temporary highlight
-      if (this.config.players[this.currentPlayer].score > pointsBefore) {
-        userB.flashScored();
-      }
-
-      // Standard drop animation
-      userB.el.style.transform = 'translateZ(200px) rotateX(-90deg) translateZ(-52px)';
-      setTimeout(() => {
-        userB.el.style.transform = '';
-      }, 200);
-
-      this.switchPlayer();
-    }
-
-    switchPlayer() {
-      this.currentPlayer = this.currentPlayer === 1 ? 2 : 1;
-
-      // Optional: Update UI to show who's turn it is
-      const turnIndicator = document.getElementById('current-turn');
-      if (turnIndicator) {
-        turnIndicator.innerText = `Turn: Player ${this.currentPlayer}`;
-        turnIndicator.className = this.currentPlayer === 1 ? 'playerOneText' : 'playerTwoText';
-      }
-
-      console.log(`Current Player is now: ${this.currentPlayer}`);
-    }
-
-    checkPoints() {
-      const { x: col, y: row } = this.selected;
-      const ply = this.currentPlayer;
-      const rows = this.grid.length;
-      const cols = this.grid[0].length;
-
-      const check = (r, c) => {
-        const nRow = row + r;
-        const nCol = col + c;
-        if (nRow < 0 || nRow >= rows || nCol < 0 || nCol >= cols) return false;
-
-        const sqr = this.grid[nRow][nCol].element;
-        sqr.style.backgroundColor = this.config.players[ply].color;
-        return sqr.placed && sqr.player === ply;
-      };
-
-      // Scoring Patterns
-      const patterns = [
-        () => col > 1 && ((row > 1 && check(-1, -1) && check(-2, -2)) || (row < 7 && check(1, -1) && check(2, -2)) || (check(0, -1) && check(0, -2))),
-        () => col < 7 && ((row < 7 && check(1, 1) && check(2, 2)) || (row > 1 && check(-1, 1) && check(2, 2)) || (check(0, 1) && check(0, 2))),
-        () => row < 7 && check(1, 0) && check(2, 0),
-        () => row > 1 && check(-1, 0) && check(-2, 0),
-        () => col > 0 && col < 8 && check(0, -1) && check(0, 1),
-        () => row > 0 && row < 8 && check(1, 0) && check(-1, 0),
-        () => col > 0 && col < 8 && row > 0 && row < 8 && ((check(-1, -1) && check(1, 1)) || (check(1, -1) && check(-1, 1)))
-      ];
-
-      patterns.forEach(p => {
-        if(p()) this.config.players[ply].score++;
-      });
-
-      this.updateUI();
-    }
-
-    updateUI() {
-      if (this.config.dom.scoreOne) {
-        this.config.dom.scoreOne.innerHTML = this.config.players[1].score;
-      }
-    }
-
-    onMouseDown(e) {
-      if (e.which === 2) {
-        this.mouse.x = e.clientX;
-        this.mouse.y = e.clientY;
-
-        // Use bind for consistent references
-        this._moveHandler = (ev) => this.handleMouseMove(ev);
-        this._upHandler = () => this.stopCameraMovement();
-
-        window.addEventListener('mousemove', this._moveHandler);
-        window.addEventListener('mouseup', this._upHandler);
-      }
-    }
-
-    handleMouseMove(e) {
-      // 1. Just update the target values (Very fast)
-      let valX = this.mouse.x - e.clientX;
-      let valY = this.mouse.y - e.clientY;
-
-      this.targetX = Math.min(Math.max(this.camera.degX + valY, 18), 90);
-      this.targetY = Math.min(Math.max(this.camera.degY + valX, -45), 45);
-
-      // 2. Request a frame update if one isn't already scheduled
-      if (!this.ticking) {
-        requestAnimationFrame(() => this.updateCameraFrame());
-        this.ticking = true;
-      }
-    }
-
-    updateCameraFrame() {
-      // 3. Perform the actual DOM/CSS update here (Once per frame)
-      this.config.dom.wrap.style.transform = `rotateX(${this.targetX}deg) rotateZ(${this.targetY}deg)`;
-      this.ticking = false;
-    }
-
-    stopCameraMovement() {
-      window.removeEventListener('mousemove', this._moveHandler);
-      window.removeEventListener('mouseup', this._upHandler);
-
-      // Save the final position
-      this.camera.degX = this.targetX;
-      this.camera.degY = this.targetY;
     }
   }
 
@@ -230,6 +68,7 @@
       this.x = x;
       this.y = y;
       this.manager = manager;
+      this.currentCube = null; // Stores UserBox instance
       this.element = DomUtils.make('div', 'square');
 
       this.element.style.top = `${y * size}px`;
@@ -240,30 +79,25 @@
     }
 
     highlight() {
-      if (this.manager.prevSelected) {
-        this.manager.prevSelected.style.backgroundImage = 'none';
+      if (this.manager.prevSelectedTile) {
+        this.manager.prevSelectedTile.element.style.backgroundImage = 'none';
       }
-
-      this.manager.selected = { x: this.x, y: this.y, square: this.element };
+      this.manager.selected = { x: this.x, y: this.y, tile: this };
       this.element.style.backgroundImage = 'url("glow.png")';
       this.element.style.backgroundSize = 'contain';
       this.element.style.backgroundRepeat = 'no-repeat';
-
-      this.manager.prevSelected = this.element;
+      this.manager.prevSelectedTile = this;
     }
   }
 
   /**
-   * The 3D Cube
+   * 3D Cube Component
    */
   class UserBox {
     constructor(manager) {
       this.manager = manager;
       this.el = DomUtils.make('div', 'cube');
-
-      // Set permanent player skin
-      const playerClass = this.manager.currentPlayer === 1 ? 'playerOne' : 'playerTwo';
-      this.el.classList.add(playerClass);
+      this.el.classList.add(this.manager.config.players[this.manager.currentPlayer].class);
 
       const sides = ['top', 'front', 'back', 'left', 'right', 'bottom'];
       this.sideElements = {};
@@ -280,41 +114,185 @@
       });
     }
 
-    // New Highlight Method
     flashScored() {
       this.el.classList.add('scored');
-
-      // Remove the class after 1 second (or match your transition time)
-      setTimeout(() => {
-        this.el.classList.remove('scored');
-      }, 1000);
+      setTimeout(() => this.el.classList.remove('scored'), 1000);
     }
 
     stackCube() {
       if (this.sideElements.top.placed) return;
-
-      const nextBox = new UserBox(this.manager);
-      this.sideElements.top.appendChild(nextBox.el);
-
-      nextBox.el.style.transform = 'translateZ(52px) rotateX(-90deg) translateZ(-52px)';
-      this.sideElements.top.placed = true;
-
-      // Check if stacking scores a point
-      const pointsBefore = this.manager.config.players[this.manager.currentPlayer].score;
-      this.manager.checkPoints();
-      if (this.manager.config.players[this.manager.currentPlayer].score > pointsBefore) {
-        nextBox.flashScored();
-      }
-
-      setTimeout(() => {
-        nextBox.el.style.transform = '';
-      }, 200);
-
-      this.manager.switchPlayer();
+      this.manager.placeBox(this.sideElements.top);
     }
   }
 
-  // Start Application
+  /**
+   * Main Game Engine
+   */
+  class GameEngine {
+    constructor() {
+      this.config = new GameConfig();
+      this.grid = [];
+      this.currentPlayer = 1;
+      this.selected = { x: 0, y: 0, tile: null };
+      this.prevSelectedTile = null;
+
+      // Camera Optimization State
+      this.camera = { degX: 54, degY: -29 };
+      this.mouse = { x: 0, y: 0 };
+      this.targetX = 54;
+      this.targetY = -29;
+      this.ticking = false;
+
+      this.init();
+    }
+
+    init() {
+      for (let i = 0; i < this.config.rows; i++) {
+        this.grid[i] = [];
+        for (let j = 0; j < this.config.cols; j++) {
+          this.grid[i].push(new Tile(j, i, this.config.boxSize, this));
+        }
+      }
+
+      document.addEventListener('mousedown', (e) => this.onMouseDown(e));
+      this.config.dom.game.addEventListener('click', () => this.placeBox());
+    }
+    notify(text, isCombo = false) {
+      const msg = DomUtils.make('div', 'game-notification');
+      msg.innerText = text;
+      if (isCombo) msg.classList.add('combo-text');
+
+      this.config.dom.msgBox.appendChild(msg);
+
+      // Auto-remove after animation
+      setTimeout(() => msg.remove(), 2000);
+    }
+
+    placeBox(targetParent = null) {
+      const tile = this.selected.tile;
+      if (!tile || (targetParent === null && tile.element.placed)) return;
+
+      const parent = targetParent || tile.element;
+      const userB = new UserBox(this);
+      const currentPlayerName = this.config.players[this.currentPlayer].name;
+
+      parent.appendChild(userB.el);
+      parent.placed = true;
+      parent.player = this.currentPlayer;
+
+      if (!targetParent) tile.currentCube = userB;
+
+      const winners = this.checkPoints();
+
+      // 1. Handle Scoring Notifications
+      if (winners.length > 0) {
+        const pointsFound = winners.length / 2; // Patterns of 3 use 2 contributors + 1 placed
+        if (pointsFound > 1) {
+          this.notify(`${pointsFound}x COMBO!`, true);
+        } else {
+          this.notify("+1 Point!");
+        }
+      }
+
+      userB.el.style.transform = 'translateZ(200px) rotateX(-90deg) translateZ(-52px)';
+
+      setTimeout(() => {
+        userB.el.style.transform = '';
+        if (winners.length > 0) {
+          userB.flashScored();
+          winners.forEach(t => { if (t.currentCube) t.currentCube.flashScored(); });
+        }
+
+        this.switchPlayer();
+
+        // 2. Announce Next Turn
+        const nextPlayerName = this.config.players[this.currentPlayer].name;
+        this.notify(`${nextPlayerName}'s Turn`, false);
+      }, 200);
+    }
+
+    checkPoints() {
+      const { x: col, y: row } = this.selected;
+      const ply = this.currentPlayer;
+      let contributors = [];
+
+      const getTile = (r, c) => {
+        const nR = row + r, nC = col + c;
+        if (nR < 0 || nR >= this.config.rows || nC < 0 || nC >= this.config.cols) return null;
+        const t = this.grid[nR][nC];
+        return (t.element.placed && t.element.player === ply) ? t : null;
+      };
+
+      // Example Patterns (Horizontal, Vertical, Diagonals)
+      const patterns = [
+        [ [0,-1], [0,-2] ], [ [0,1], [0,2] ], // Horiz
+        [ [1,0], [2,0] ], [ [-1,0], [-2,0] ], // Vert
+        [ [1,1], [2,2] ], [ [-1,-1], [-2,-2] ], // Diag 1
+        [ [1,-1], [2,-2] ], [ [-1,1], [-2,2] ], // Diag 2
+        [ [0,-1], [0,1] ], [ [1,0], [-1,0] ]    // Middlers
+      ];
+
+      patterns.forEach(p => {
+        const t1 = getTile(p[0][0], p[0][1]);
+        const t2 = getTile(p[1][0], p[1][1]);
+        if (t1 && t2) {
+          contributors.push(t1, t2);
+          this.config.players[ply].score++;
+        }
+      });
+
+      this.updateUI();
+      return contributors;
+    }
+
+    updateUI() {
+      if (this.config.dom.scoreOne) {
+        this.config.dom.scoreOne.innerHTML = this.config.players[1].score;
+      }
+      if (this.config.dom.scoreTwo) {
+        this.config.dom.scoreTwo.innerHTML = this.config.players[2].score;
+      }
+    }
+
+    switchPlayer() {
+      this.currentPlayer = this.currentPlayer === 1 ? 2 : 1;
+    }
+
+    /**
+     * Optimized Camera via RequestAnimationFrame
+     */
+    onMouseDown(e) {
+      if (e.which === 2) {
+        this.mouse.x = e.clientX;
+        this.mouse.y = e.clientY;
+        this._moveRef = (ev) => this.handleMouseMove(ev);
+        this._upRef = () => this.stopCamera();
+        window.addEventListener('mousemove', this._moveRef);
+        window.addEventListener('mouseup', this._upRef);
+      }
+    }
+
+    handleMouseMove(e) {
+      this.targetX = Math.min(Math.max(this.camera.degX + (this.mouse.y - e.clientY), 18), 90);
+      this.targetY = Math.min(Math.max(this.camera.degY + (this.mouse.x - e.clientX), -45), 45);
+      if (!this.ticking) {
+        requestAnimationFrame(() => {
+          this.config.dom.wrap.style.transform = `rotateX(${this.targetX}deg) rotateZ(${this.targetY}deg)`;
+          this.ticking = false;
+        });
+        this.ticking = true;
+      }
+    }
+
+    stopCamera() {
+      window.removeEventListener('mousemove', this._moveRef);
+      window.removeEventListener('mouseup', this._upRef);
+      this.camera.degX = this.targetX;
+      this.camera.degY = this.targetY;
+    }
+  }
+
+  // Global Init
   const app = new GameEngine();
 
 </script>
