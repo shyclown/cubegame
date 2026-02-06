@@ -25,256 +25,297 @@
 </div>
 </body>
 <script>
-  function _(id){ return document.getElementById(id); };
-  function _make(tag, oClass){ el = document.createElement(tag); el.className = oClass; return el; };
+  /**
+   * Utility Helper Class
+   */
+  class DomUtils {
+    static get(id) { return document.getElementById(id); }
 
-  var map = [
-    [1,1,1,1,1,1,1,1,1],
-    [1,1,1,1,1,1,1,1,1],
-    [1,1,1,1,1,1,1,1,1],
-    [1,1,1,1,1,1,1,1,1],
-    [1,1,1,1,1,1,1,1,1],
-    [1,1,1,1,1,1,1,1,1],
-    [1,1,1,1,1,1,1,1,1],
-    [1,1,1,1,1,1,1,1,1],
-    [1,1,1,1,1,1,1,1,1]
-  ];
-  
-  var GAMEAPP = GAMEAPP || {};
-
-  GAMEAPP.data = {
-    map:{
-      size:9,
-      squares:54
-    },
-    player:{
-      one:{name:'default name', score:0, image:'' },
-      two:{name:'default name', score:0, image:'' }
-    },
-    cubes:[]
-  };
-
-  GAMEAPP.data.parts = {
-
-  }
-  // storing squares to grid
-  var gird = [];
-
-  var gamewrap = _('gamewrap');
-  var game = _('game');
-  var score_one = _('score-one')
-  var rows = map.length;
-  var cols = map[0].length;
-  var box = 54; // 52px square + 2px border (1px each side)
-
-  var Gamedata = Gamedata || {}
-  Gamedata.prev = '';
-
-  Gamedata.grass = function(){
-    this.el = _make('div', 'grass');
+    static make(tag, className) {
+      const el = document.createElement(tag);
+      if (className) el.className = className;
+      return el;
+    }
   }
 
-
-
-  Gamedata.userBox = function(){
-    //const instance = new GameBox()
-
-    this.box = _make('div', 'cube');
-    this.topSide = _make('div', 'top');
-    this.bottomSide = _make('div', 'front');
-    this.backSide = _make('div', 'back');
-    this.frontSide = _make('div', 'left');
-    this.rightSide = _make('div', 'right');
-    this.leftSide = _make('div', 'bottom');
-    this.box.appendChild(this.topSide);
-    this.box.appendChild(this.bottomSide);
-    this.box.appendChild(this.leftSide);
-    this.box.appendChild(this.rightSide);
-    this.box.appendChild(this.backSide);
-    this.box.appendChild(this.frontSide);
-
-    this.topSide.addEventListener('click',this.placeBoxSides.bind(this),false);
+  /**
+   * Game Configuration & Data State
+   */
+  class GameConfig {
+    constructor() {
+      this.map = Array(9).fill().map(() => Array(9).fill(1));
+      this.boxSize = 54;
+      this.players = {
+        1: { name: 'Player One', score: 0, color: '#000' },
+        2: { name: 'Player Two', score: 0, color: '#444' }
+      };
+      this.dom = {
+        wrap: DomUtils.get('gamewrap'),
+        game: DomUtils.get('game'),
+        scoreOne: DomUtils.get('score-one')
+      };
+    }
   }
 
-  Gamedata.userBox.prototype.placeBoxSides = function(e){
-    if(this.topSide.placed){}
-    else
-    {
-      console.log('stacking cube');
-      var self = this;
-      var a = new Gamedata.userBox();
-      this.topSide.appendChild(a.box);
-      a.box.setAttribute('style','transform: translateZ(52px) rotateX(-90deg) translateZ(-52px);');
-      this.topSide.placed = true;
-      setTimeout(function(){
-        a.box.removeAttribute('style');
-        self.topSide.removeEventListener('click',self.placeBoxSides,false);
-      },200);}
-  }
+  /**
+   * Main Game Controller
+   */
+  class GameEngine {
+    constructor() {
+      this.config = new GameConfig();
+      this.grid = [];
+      this.currentPlayer = 1;
+      this.prevSelected = null;
+      this.selected = { square: null, x: 0, y: 0 };
 
-  Gamedata.player = {
-    points:0
-  }
+      this.camera = { degX: 54, degY: -29 };
+      this.mouse = { x: 0, y: 0 };
 
-  Gamedata.checkPoints = function(){
-    console.log(selected);
-    var col = selected.x;
-    var row = selected.y;
-    var ply = selected.square.player;
-    var i=0;
+      // Optimization: Track the "target" rotation separately from "current"
+      this.targetX = 54;
+      this.targetY = -29;
+      this.ticking = false;
 
-    var check = function(r, c){
-      var nrow = row + r;
-      var ncol = col + c;
-      console.log(i+': '+nrow+'-'+ncol);
-      if(nrow < 0 || nrow >= rows || ncol < 0 || ncol >= cols) return false;
-      var sqr = gird[nrow][ncol].square;
-      sqr.style.backgroundColor = "#000";
-      if(sqr.placed){
-        var nplayer = sqr.player;
-        if(nplayer === ply){ return true; }
+      this.init();
+    }
+
+    init() {
+      const rows = this.config.map.length;
+      const cols = this.config.map[0].length;
+
+      // Build the grid based on the map
+      for (let i = 0; i < rows; i++) {
+        this.grid[i] = [];
+        for (let j = 0; j < cols; j++) {
+          const tile = new Tile(j, i, this.config.boxSize, this);
+          this.grid[i].push(tile);
+        }
       }
-      i++;
-      return false;
-    }
-    //  [2, -2]         [2, 0]        [2, 2]
-    //          [1, -1] [1, 0] [1, 1] [1, 2]
-    //  [0, -2] [0, -1] [0, 0] [0, 1] [0, 2]
-    //          [-1,-1] [-1,0] [-1,1] [-1,2]
-    //  [-2,-2]         [-2,0]        [-2,2]
 
-    if(col>1){
-      // close points left
-      if(row>1){ if(check(-1,-1) && check(-2,-2)){ Gamedata.player.points++ }}
-      if(row<7){ if(check(1,-1) && check(2,-2)){ Gamedata.player.points++ }}
-      if(check(0,-1) && check(0,-2)){ Gamedata.player.points++ }
-    }
-    if(col<7){
-      // close points right
-      if(row<7){ if(check(1,1) && check(2,2)){ Gamedata.player.points++ }}
-      if(row>1){ if(check(-1,1) && check(-2,2)){ Gamedata.player.points++ }}
-      if(check(0,1) && check(0,2)){ Gamedata.player.points++ }
-    }
-    // up and down
-    if(row<7){if(check(1,0) && check(2,0)){ Gamedata.player.points++ }}
-    if(row>1){if(check(-1,0) && check(-2,0)){ Gamedata.player.points++ }}
-    // is middle of
-    if(col>0 && col<8){if(check(0,-1) && check(0,1)){ Gamedata.player.points++ }}
-    if(row>0 && row<8){if(check(1,0) && check(-1,0)){ Gamedata.player.points++ }}
-    if(col>0 && col<8 && row>0 && row<8){
-      //diagonal middle
-      if(check(-1,-1) && check(1,1)){ Gamedata.player.points++ }
-      if(check(1,-1) && check(-1,1)){ Gamedata.player.points++ }
+      // Global Listeners
+      document.addEventListener('mousedown', (e) => this.onMouseDown(e));
+      this.config.dom.game.addEventListener('click', () => this.placeBox());
     }
 
+    placeBox() {
+      const target = this.selected.square;
+      if (!target || target.placed) return;
 
-    score_one.innerHTML = Gamedata.player.points;
+      const userB = new UserBox(this);
+      target.appendChild(userB.el);
 
+      target.placed = true;
+      target.player = this.currentPlayer;
 
-    console.log(Gamedata.player.points);
-  }
-  Gamedata.tile = function(x,y){
-    this.x = x;
-    this.y = y;
-    this.z = '';
-    this.oBoxes = 0;
-  }
-  var selected = {
-    square:'',
-    x:'',
-    y:''
-  }
-  Gamedata.tile.prototype._init = function(){
-    this.square = _make('div','square');
-    game.appendChild(this.square);
-    this.square.style.top = this.y * box + 'px';
-    this.square.style.left = this.x * box + 'px';
-    //var grass = new Gamedata.grass();
-    //this.square.appendChild(grass.el);
-    this.square.addEventListener('mouseover',this.highlight.bind(this),false);
-  }
+      const pointsBefore = this.config.players[this.currentPlayer].score;
+      this.checkPoints();
 
-  Gamedata.placeBox = function(){
-    if(selected.square.placed){}
-    else
-    {
-      var userB = new Gamedata.userBox();
-      selected.square.appendChild(userB.box);
-      selected.square.placed = true;
-      selected.square.player = 1;
-      Gamedata.checkPoints();
-      userB.box.setAttribute('style','transform: translateZ(200px) rotateX(-90deg) translateZ(-52px);');
-      setTimeout(function(){
-        userB.box.removeAttribute('style');
-      },200);
-      selected.square.removeEventListener('click',Gamedata.placeBox,false);
+      // If they scored, trigger the temporary highlight
+      if (this.config.players[this.currentPlayer].score > pointsBefore) {
+        userB.flashScored();
+      }
+
+      // Standard drop animation
+      userB.el.style.transform = 'translateZ(200px) rotateX(-90deg) translateZ(-52px)';
+      setTimeout(() => {
+        userB.el.style.transform = '';
+      }, 200);
+
+      this.switchPlayer();
     }
 
-  }
+    switchPlayer() {
+      this.currentPlayer = this.currentPlayer === 1 ? 2 : 1;
 
-  Gamedata.tile.prototype.highlight = function(){
-    if(Gamedata.prev != ''){
-      Gamedata.prev.style.background = 'none';
+      // Optional: Update UI to show who's turn it is
+      const turnIndicator = document.getElementById('current-turn');
+      if (turnIndicator) {
+        turnIndicator.innerText = `Turn: Player ${this.currentPlayer}`;
+        turnIndicator.className = this.currentPlayer === 1 ? 'playerOneText' : 'playerTwoText';
+      }
+
+      console.log(`Current Player is now: ${this.currentPlayer}`);
     }
-    selected.x = this.x;
-    selected.y = this.y;
-    selected.square = this.square;
-    this.square.style.backgroundImage = 'url("glow.png")';
-    this.square.style.backgroundSize = 'contain';
-    this.square.style.backgroundRepeat = 'no-repeat';
-    Gamedata.prev = this.square;
-  }
 
-  for(var i=0;i < rows; i++){
-    gird[i] = [];
-    for(var j=0; j < cols; j++){
-      var square = new Gamedata.tile(j,i);
-      square._init();
-      gird[i].push(square);
+    checkPoints() {
+      const { x: col, y: row } = this.selected;
+      const ply = this.currentPlayer;
+      const rows = this.grid.length;
+      const cols = this.grid[0].length;
+
+      const check = (r, c) => {
+        const nRow = row + r;
+        const nCol = col + c;
+        if (nRow < 0 || nRow >= rows || nCol < 0 || nCol >= cols) return false;
+
+        const sqr = this.grid[nRow][nCol].element;
+        sqr.style.backgroundColor = this.config.players[ply].color;
+        return sqr.placed && sqr.player === ply;
+      };
+
+      // Scoring Patterns
+      const patterns = [
+        () => col > 1 && ((row > 1 && check(-1, -1) && check(-2, -2)) || (row < 7 && check(1, -1) && check(2, -2)) || (check(0, -1) && check(0, -2))),
+        () => col < 7 && ((row < 7 && check(1, 1) && check(2, 2)) || (row > 1 && check(-1, 1) && check(2, 2)) || (check(0, 1) && check(0, 2))),
+        () => row < 7 && check(1, 0) && check(2, 0),
+        () => row > 1 && check(-1, 0) && check(-2, 0),
+        () => col > 0 && col < 8 && check(0, -1) && check(0, 1),
+        () => row > 0 && row < 8 && check(1, 0) && check(-1, 0),
+        () => col > 0 && col < 8 && row > 0 && row < 8 && ((check(-1, -1) && check(1, 1)) || (check(1, -1) && check(-1, 1)))
+      ];
+
+      patterns.forEach(p => {
+        if(p()) this.config.players[ply].score++;
+      });
+
+      this.updateUI();
+    }
+
+    updateUI() {
+      if (this.config.dom.scoreOne) {
+        this.config.dom.scoreOne.innerHTML = this.config.players[1].score;
+      }
+    }
+
+    onMouseDown(e) {
+      if (e.which === 2) {
+        this.mouse.x = e.clientX;
+        this.mouse.y = e.clientY;
+
+        // Use bind for consistent references
+        this._moveHandler = (ev) => this.handleMouseMove(ev);
+        this._upHandler = () => this.stopCameraMovement();
+
+        window.addEventListener('mousemove', this._moveHandler);
+        window.addEventListener('mouseup', this._upHandler);
+      }
+    }
+
+    handleMouseMove(e) {
+      // 1. Just update the target values (Very fast)
+      let valX = this.mouse.x - e.clientX;
+      let valY = this.mouse.y - e.clientY;
+
+      this.targetX = Math.min(Math.max(this.camera.degX + valY, 18), 90);
+      this.targetY = Math.min(Math.max(this.camera.degY + valX, -45), 45);
+
+      // 2. Request a frame update if one isn't already scheduled
+      if (!this.ticking) {
+        requestAnimationFrame(() => this.updateCameraFrame());
+        this.ticking = true;
+      }
+    }
+
+    updateCameraFrame() {
+      // 3. Perform the actual DOM/CSS update here (Once per frame)
+      this.config.dom.wrap.style.transform = `rotateX(${this.targetX}deg) rotateZ(${this.targetY}deg)`;
+      this.ticking = false;
+    }
+
+    stopCameraMovement() {
+      window.removeEventListener('mousemove', this._moveHandler);
+      window.removeEventListener('mouseup', this._upHandler);
+
+      // Save the final position
+      this.camera.degX = this.targetX;
+      this.camera.degY = this.targetY;
     }
   }
 
-  var mouse = { x:'',y:'',}
-  var camera = {degX:54, degY:-29}
-  var camera_new = {degX:'',degY:''}
+  /**
+   * Individual Grid Tile
+   */
+  class Tile {
+    constructor(x, y, size, manager) {
+      this.x = x;
+      this.y = y;
+      this.manager = manager;
+      this.element = DomUtils.make('div', 'square');
 
-  Gamedata.updateCamera = function(event){
-    var valueX = mouse.x - event.clientX;
-    var valueY = mouse.y - event.clientY;
+      this.element.style.top = `${y * size}px`;
+      this.element.style.left = `${x * size}px`;
 
+      this.element.addEventListener('mouseover', () => this.highlight());
+      this.manager.config.dom.game.appendChild(this.element);
+    }
 
-    camera_new.degX = camera.degX + valueY;
-    camera_new.degY = camera.degY + valueX;
+    highlight() {
+      if (this.manager.prevSelected) {
+        this.manager.prevSelected.style.backgroundImage = 'none';
+      }
 
-    var x, y;
-    if(camera_new.degX > 90){x = 90;}
-    else if(camera_new.degX < 18){x = 18}
-    else{ x = camera_new.degX;}
-    if(camera_new.degY > 45){y = 45;}
-    else if(camera_new.degY < -45){y = -45}
-    else{ y = camera_new.degY;}
+      this.manager.selected = { x: this.x, y: this.y, square: this.element };
+      this.element.style.backgroundImage = 'url("glow.png")';
+      this.element.style.backgroundSize = 'contain';
+      this.element.style.backgroundRepeat = 'no-repeat';
 
-    gamewrap.style.transform = 'rotateX(' + x + 'deg) rotateZ(' + y + 'deg)';
-    camera_new.degX = x;
-    camera_new.degY = y;
+      this.manager.prevSelected = this.element;
+    }
   }
-  Gamedata.endCameraMovement = function(){
-    window.removeEventListener('mousemove',Gamedata.updateCamera,false);
 
-    camera.degX = camera_new.degX;
-    camera.degY = camera_new.degY;
+  /**
+   * The 3D Cube
+   */
+  class UserBox {
+    constructor(manager) {
+      this.manager = manager;
+      this.el = DomUtils.make('div', 'cube');
+
+      // Set permanent player skin
+      const playerClass = this.manager.currentPlayer === 1 ? 'playerOne' : 'playerTwo';
+      this.el.classList.add(playerClass);
+
+      const sides = ['top', 'front', 'back', 'left', 'right', 'bottom'];
+      this.sideElements = {};
+
+      sides.forEach(side => {
+        const sideEl = DomUtils.make('div', side);
+        this.sideElements[side] = sideEl;
+        this.el.appendChild(sideEl);
+      });
+
+      this.sideElements.top.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.stackCube();
+      });
+    }
+
+    // New Highlight Method
+    flashScored() {
+      this.el.classList.add('scored');
+
+      // Remove the class after 1 second (or match your transition time)
+      setTimeout(() => {
+        this.el.classList.remove('scored');
+      }, 1000);
+    }
+
+    stackCube() {
+      if (this.sideElements.top.placed) return;
+
+      const nextBox = new UserBox(this.manager);
+      this.sideElements.top.appendChild(nextBox.el);
+
+      nextBox.el.style.transform = 'translateZ(52px) rotateX(-90deg) translateZ(-52px)';
+      this.sideElements.top.placed = true;
+
+      // Check if stacking scores a point
+      const pointsBefore = this.manager.config.players[this.manager.currentPlayer].score;
+      this.manager.checkPoints();
+      if (this.manager.config.players[this.manager.currentPlayer].score > pointsBefore) {
+        nextBox.flashScored();
+      }
+
+      setTimeout(() => {
+        nextBox.el.style.transform = '';
+      }, 200);
+
+      this.manager.switchPlayer();
+    }
   }
 
-  document.addEventListener('mousedown',function(event){
-    if(event.which == 2){
-      mouse.x = event.clientX;
-      mouse.y = event.clientY;
-      window.addEventListener('mousemove',Gamedata.updateCamera,false);
-      window.addEventListener('mouseup',Gamedata.endCameraMovement,false);
-    };
-  },false);
-
-  game.addEventListener('click',Gamedata.placeBox,false);
+  // Start Application
+  const app = new GameEngine();
 
 </script>
 
