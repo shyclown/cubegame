@@ -1,48 +1,53 @@
 .cube{
-  -webkit-transition: all 450ms ease-in-out;
-  -moz-transition: all 450ms ease-in-out;
-  -o-transition: all 450ms ease-in-out;
-  transition: all 450ms ease-in-out;
-  z-index: 9999;
+    -webkit-transition: all 450ms ease-in-out;
+    transition: all 450ms ease-in-out;
+    z-index: 9999;
 
-  position: relative;
-  width:52px;
-  height:52px;
-  transform: rotateX(-90deg) translateZ(-52px);
-  transform-origin: bottom center;
-  transform-style: preserve-3d;
+    position: relative;
+    width:52px;
+    height:52px;
+    transform: rotateX(-90deg) translateZ(-52px);
+    transform-origin: bottom center;
+    transform-style: preserve-3d;
 }
+
 .cube div {
-	position: absolute;
-	width: 52px;
-	height: 52px;
-  background-size:contain;
-  background-repeat: no-repeat;
+    position: absolute;
+    width: 52px;
+    height: 52px;
+    background-size: contain;
+    background-repeat: no-repeat;
 }
-.playerOne div{background-image: url('side.jpg');}
+
+.playerOne div{background-image: url('side_p.jpg');}
 .playerOne.scored div{background-image: url('side_p.jpg');}
 .playerTwo div{background-image: url('green.jpg');}
 .playerTwo.scored div{background-image: url('green_p.jpg');}
+
 .back {
 	transform: translateZ(0px) rotateY(180deg);
   background-color: green;
 }
+
 .right {
 	transform: rotateY(-270deg) translateX(0px);
 	transform-origin: top right;
   background-color: blue;
 }
+
 .left {
 	transform: rotateY(270deg) translateX(0px);
 	transform-origin: top left;
   background-color: green;
 }
+
 .top {
 	transform: rotateX(90deg) translateY(0px);
 	transform-origin: top center;
   background-color: yellow;
   transform-style: preserve-3d;
 }
+
 .bottom {
 	transform: rotateX(-90deg) translateY(0px);
 	transform-origin: bottom center;
@@ -53,5 +58,6 @@
   background-color: orange;
 }
 .top:hover{
-  background-color: white;
+    background-color: white;
+    cursor: pointer;
 }
