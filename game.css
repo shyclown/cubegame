@@ -87,3 +87,22 @@ body {
   80% { opacity: 1; }
   100% { opacity: 0; transform: translateY(-50px); }
 }
+
+/* Change your .locked class to this */
+.locked {
+  /* This prevents clicks without changing how the element renders */
+  pointer-events: none !important;
+  cursor: wait !important;
+}
+
+/* Add this to your CSS */
+.bot-thinking {
+  cursor: wait !important;
+  pointer-events: none;
+}
+
+/* Optional: Add a subtle pulse to the score-box of the bot */
+.playerTwo.thinking-ui {
+  box-shadow: 0 0 15px #ff0000;
+  transition: 0.3s;
+}

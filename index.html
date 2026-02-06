@@ -19,6 +19,17 @@
     <div>score:<span id="score-two" class="score">0</span></div>
   </div>
 </div>
+<div id="controls">
+  <div style="margin-left: 500px">
+
+  <label>Difficulty: </label>
+  <select id="bot-difficulty">
+    <option value="easy">Easy (Random-ish)</option>
+    <option value="hard" selected>Hard (Strategic)</option>
+  </select>
+  <button id="reset-game">Reset Game</button>
+  </div>
+</div>
 <div id="gamewrap" >
   <div id="game"></div>
 </div>
@@ -38,28 +49,29 @@
   }
 
   class GameBot {
-    constructor(manager, playerId) {
+    constructor(manager, playerId, difficulty = 'hard') {
       this.manager = manager;
       this.playerId = playerId;
+      this.opponentId = playerId === 1 ? 2 : 1;
+      this.difficulty = difficulty;
     }
 
     takeTurn() {
       const moves = this.getAvailableMoves();
       if (moves.length === 0) return;
 
-      // Sort moves: highest score first
+      // Sort: Best scores first
       moves.sort((a, b) => b.score - a.score);
 
-      // Pick from the top-tier moves (adds slight variety so it's not 100% predictable)
-      const topScore = moves[0].score;
-      const bestMoves = moves.filter(m => m.score === topScore);
-      const finalMove = bestMoves[Math.floor(Math.random() * bestMoves.length)];
+      // Hard: Pick absolute best. Easy: Pick from top 3.
+      const bestMove = (this.difficulty === 'hard')
+              ? moves[0]
+              : moves[Math.floor(Math.random() * Math.min(moves.length, 3))];
 
       setTimeout(() => {
-        // Highlight the tile for visual feedback before "clicking"
-        finalMove.tile.highlight();
-        this.manager.placeBox();
-      }, 1000);
+        bestMove.tile.highlight();
+        this.manager.placeBox(null, true);
+      }, 800);
     }
 
     getAvailableMoves() {
@@ -70,7 +82,7 @@
           if (!tile.element.placed) {
             scoredMoves.push({
               r, c, tile,
-              score: this.calculateTileWeight(r, c)
+              score: this.evaluateMove(r, c)
             });
           }
         }
@@ -78,28 +90,51 @@
       return scoredMoves;
     }
 
-    calculateTileWeight(row, col) {
-      let weight = 0;
+    evaluateMove(r, c) {
+      let score = 0;
+      score += this.calculateProximity(r, c);
 
-      // Check all 8 directions around the tile
+      if (this.difficulty === 'hard') {
+        // Offensive: Check if Bot can score
+        const offensivePoints = this.simulatePointCheck(r, c, this.playerId);
+        score += (offensivePoints * 100);
+
+        // Defensive: Check if Bot needs to block Player
+        const defensivePoints = this.simulatePointCheck(r, c, this.opponentId);
+        score += (defensivePoints * 85);
+      }
+      return score;
+    }
+
+    simulatePointCheck(row, col, plyId) {
+      let connections = 0;
+      const patterns = [
+        [[0,-1], [0,-2]], [[0,1], [0,2]], [[0,-1], [0,1]], // Horiz
+        [[1,0], [2,0]], [[-1,0], [-2,0]], [[1,0], [-1,0]], // Vert
+        [[1,1], [2,2]], [[-1,-1], [-2,-2]], [[1,1], [-1,-1]], // Diag \
+        [[1,-1], [2,-2]], [[-1,1], [-2,2]], [[1,-1], [-1,1]]  // Diag /
+      ];
+
+      patterns.forEach(p => {
+        const isMatch = p.every(offset => {
+          const nR = row + offset[0];
+          const nC = col + offset[1];
+          if (nR < 0 || nR >= 9 || nC < 0 || nC >= 9) return false;
+          const target = this.manager.grid[nR][nC].element;
+          return target.placed && target.player === plyId;
+        });
+        if (isMatch) connections++;
+      });
+      return connections;
+    }
+
+    calculateProximity(row, col) {
+      let weight = 0;
       for (let dr = -1; dr <= 1; dr++) {
         for (let dc = -1; dc <= 1; dc++) {
-          if (dr === 0 && dc === 0) continue;
-
-          const nr = row + dr;
-          const nc = col + dc;
-
-          // Ensure we stay within the 9x9 grid boundaries
-          if (nr >= 0 && nr < this.manager.config.rows && nc >= 0 && nc < this.manager.config.cols) {
-            const neighbor = this.manager.grid[nr][nc].element;
-
-            if (neighbor.placed) {
-              if (neighbor.player === this.playerId) {
-                weight += 10; // High preference for own clusters
-              } else {
-                weight += 5;  // Moderate preference for blocking/proximity to player
-              }
-            }
+          const nR = row + dr, nC = col + dc;
+          if (nR >= 0 && nR < 9 && nC >= 0 && nC < 9) {
+            if (this.manager.grid[nR][nC].element.placed) weight += 5;
           }
         }
       }
@@ -147,11 +182,14 @@
       this.manager.config.dom.game.appendChild(this.element);
     }
 
+
     highlight() {
       if (this.manager.prevSelectedTile) {
         this.manager.prevSelectedTile.element.style.backgroundImage = 'none';
       }
+      // This is the critical line the Bot needs to "select" the tile
       this.manager.selected = { x: this.x, y: this.y, tile: this };
+
       this.element.style.backgroundImage = 'url("glow.png")';
       this.element.style.backgroundSize = 'contain';
       this.element.style.backgroundRepeat = 'no-repeat';
@@ -212,8 +250,18 @@
       this.targetY = -29;
       this.ticking = false;
 
-      this.bot = new GameBot(this, 2); // Player 2 is the bot
+      this.bot = new GameBot(this, 2, 'hard');
+
+      const diffSelector = document.getElementById('bot-difficulty');
+      if (diffSelector) {
+        diffSelector.addEventListener('change', (e) => {
+          this.bot.difficulty = e.target.value;
+          this.notify(`Difficulty: ${e.target.value.toUpperCase()}`);
+        });
+      }
       this.isBotEnabled = true;
+      this.isProcessing = false;
+
 
       this.init();
     }
@@ -240,17 +288,25 @@
       setTimeout(() => msg.remove(), 2000);
     }
 
-    placeBox(targetParent = null) {
-    // Use the tile selected by either mouseover OR the bot logic
-      const tile = this.selected.tile;
-      if (!tile) return;
+    placeBox(targetParent = null, isBotAction = false) {
+// 1. Block if already processing an animation
+      if (this.isProcessing) return;
 
-      // Don't let the bot place on an occupied tile (and vice-versa)
-      if (targetParent === null && tile.element.placed) return;
+      // 2. Block if it's the Bot's turn but a human clicked
+      if (this.currentPlayer === 2 && !isBotAction) {
+        console.log("Wait for the bot!");
+        return;
+      }
+
+      const tile = this.selected.tile;
+      if (!tile || (targetParent === null && tile.element.placed)) return;
+
+      // Lock the board
+      this.isProcessing = true;
+      this.config.dom.game.classList.add('locked');
 
       const parent = targetParent || tile.element;
       const userB = new UserBox(this);
-      const currentPlayerName = this.config.players[this.currentPlayer].name;
 
       parent.appendChild(userB.el);
       parent.placed = true;
@@ -260,14 +316,9 @@
 
       const winners = this.checkPoints();
 
-      // 1. Handle Scoring Notifications
+      // Visual notifications...
       if (winners.length > 0) {
-        const pointsFound = winners.length / 2; // Patterns of 3 use 2 contributors + 1 placed
-        if (pointsFound > 1) {
-          this.notify(`${pointsFound}x COMBO!`, true);
-        } else {
-          this.notify("+1 Point!");
-        }
+        this.notify(winners.length / 2 > 1 ? "COMBO!" : "+1 Point!");
       }
 
       userB.el.style.transform = 'translateZ(200px) rotateX(-90deg) translateZ(-52px)';
@@ -281,9 +332,11 @@
 
         this.switchPlayer();
 
-        // 2. Announce Next Turn
-        const nextPlayerName = this.config.players[this.currentPlayer].name;
-        this.notify(`${nextPlayerName}'s Turn`, false);
+        // Unlock
+        this.isProcessing = false;
+        this.config.dom.game.classList.remove('locked');
+
+        // If the next player is a bot, the bot's own timeout will handle its move
       }, 200);
     }
 
@@ -333,9 +386,13 @@
     switchPlayer() {
       this.currentPlayer = this.currentPlayer === 1 ? 2 : 1;
 
-      // If it's the bot's turn, trigger it
-      if (this.isBotEnabled && this.currentPlayer === 2) {
+      if (this.currentPlayer === 2) {
+        // Visually lock the board immediately when it's the bot's turn
+        this.config.dom.game.classList.add('locked');
         this.bot.takeTurn();
+      } else {
+        // Ensure it's unlocked for the human
+        this.config.dom.game.classList.remove('locked');
       }
     }
     /**
@@ -353,8 +410,8 @@
     }
 
     handleMouseMove(e) {
-      this.targetX = Math.min(Math.max(this.camera.degX + (this.mouse.y - e.clientY), 18), 90);
-      this.targetY = Math.min(Math.max(this.camera.degY + (this.mouse.x - e.clientX), -45), 45);
+      this.targetX = Math.min(Math.max(this.camera.degX + (this.mouse.y - e.clientY), 0), 85);
+      this.targetY = Math.min(Math.max(this.camera.degY + (this.mouse.x - e.clientX), 0),360);
       if (!this.ticking) {
         requestAnimationFrame(() => {
           this.config.dom.wrap.style.transform = `rotateX(${this.targetX}deg) rotateZ(${this.targetY}deg)`;
