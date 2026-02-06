@@ -29,6 +29,13 @@
   </select>
   <button id="reset-game">Reset Game</button>
   </div>
+  <label for="bot-depth">Bot Foresight:</label>
+  <select id="bot-depth">
+    <option value="1">1 Move (Fast)</option>
+    <option value="2">2 Moves (Smart)</option>
+    <option value="3" selected>3 Moves (Hard)</option>
+    <option value="4">4 Moves (Master - Slow)</option>
+  </select>
 </div>
 <div id="gamewrap" >
   <div id="game"></div>
@@ -54,91 +61,154 @@
       this.playerId = playerId;
       this.opponentId = playerId === 1 ? 2 : 1;
       this.difficulty = difficulty;
+      this.maxDepth = 3; // How many moves to look ahead
     }
 
+    // 1. Core Turn Logic
     takeTurn() {
       const moves = this.getAvailableMoves();
       if (moves.length === 0) return;
 
-      // Sort: Best scores first
-      moves.sort((a, b) => b.score - a.score);
+      let bestScore = -Infinity;
+      let bestMove = moves[0];
 
-      // Hard: Pick absolute best. Easy: Pick from top 3.
-      const bestMove = (this.difficulty === 'hard')
-              ? moves[0]
-              : moves[Math.floor(Math.random() * Math.min(moves.length, 3))];
+      // Move Ordering: Check moves near existing pieces first to speed up Pruning
+      moves.sort((a, b) => this.calculateProximity(b.r, b.c) - this.calculateProximity(a.r, a.c));
+
+      for (const move of moves) {
+        move.tile.element.placed = true;
+        move.tile.element.player = this.playerId;
+
+        // Look ahead using Minimax
+        const score = this.minimax(this.maxDepth - 1, false, -Infinity, Infinity);
+
+        move.tile.element.placed = false;
+
+        if (score > bestScore) {
+          bestScore = score;
+          bestMove = move;
+        }
+      }
 
       setTimeout(() => {
         bestMove.tile.highlight();
         this.manager.placeBox(null, true);
-      }, 800);
+      }, 600);
     }
 
-    getAvailableMoves() {
-      const scoredMoves = [];
-      for (let r = 0; r < this.manager.config.rows; r++) {
-        for (let c = 0; c < this.manager.config.cols; c++) {
-          const tile = this.manager.grid[r][c];
-          if (!tile.element.placed) {
-            scoredMoves.push({
-              r, c, tile,
-              score: this.evaluateMove(r, c)
-            });
+    // 2. Minimax with Alpha-Beta Pruning
+    minimax(depth, isMaximizing, alpha, beta) {
+      if (depth === 0) return this.evaluateBoard();
+
+      const moves = this.getAvailableMoves();
+      if (isMaximizing) {
+        let maxEval = -Infinity;
+        for (const move of moves) {
+          move.tile.element.placed = true;
+          move.tile.element.player = this.playerId;
+          let evalScore = this.minimax(depth - 1, false, alpha, beta);
+          move.tile.element.placed = false;
+          maxEval = Math.max(maxEval, evalScore);
+          alpha = Math.max(alpha, evalScore);
+          if (beta <= alpha) break;
+        }
+        return maxEval;
+      } else {
+        let minEval = Infinity;
+        for (const move of moves) {
+          move.tile.element.placed = true;
+          move.tile.element.player = this.opponentId;
+          let evalScore = this.minimax(depth - 1, true, alpha, beta);
+          move.tile.element.placed = false;
+          minEval = Math.min(minEval, evalScore);
+          beta = Math.min(beta, evalScore);
+          if (beta <= alpha) break;
+        }
+        return minEval;
+      }
+    }
+
+    // 3. Scoring Heuristic (Detects Combos)
+    evaluateBoard() {
+      let score = 0;
+      for (let r = 0; r < 9; r++) {
+        for (let c = 0; c < 9; c++) {
+          if (!this.manager.grid[r][c].element.placed) {
+            const botGain = this.simulatePointCheck(r, c, this.playerId);
+            const plyGain = this.simulatePointCheck(r, c, this.opponentId);
+
+            // Focus on getting and blocking combos
+            score += (botGain > 1 ? botGain * 800 : botGain * 100);
+            score -= (plyGain > 1 ? plyGain * 900 : plyGain * 120);
           }
         }
-      }
-      return scoredMoves;
-    }
-
-    evaluateMove(r, c) {
-      let score = 0;
-      score += this.calculateProximity(r, c);
-
-      if (this.difficulty === 'hard') {
-        // Offensive: Check if Bot can score
-        const offensivePoints = this.simulatePointCheck(r, c, this.playerId);
-        score += (offensivePoints * 100);
-
-        // Defensive: Check if Bot needs to block Player
-        const defensivePoints = this.simulatePointCheck(r, c, this.opponentId);
-        score += (defensivePoints * 85);
       }
       return score;
     }
 
-    simulatePointCheck(row, col, plyId) {
-      let connections = 0;
-      const patterns = [
-        [[0,-1], [0,-2]], [[0,1], [0,2]], [[0,-1], [0,1]], // Horiz
-        [[1,0], [2,0]], [[-1,0], [-2,0]], [[1,0], [-1,0]], // Vert
-        [[1,1], [2,2]], [[-1,-1], [-2,-2]], [[1,1], [-1,-1]], // Diag \
-        [[1,-1], [2,-2]], [[-1,1], [-2,2]], [[1,-1], [-1,1]]  // Diag /
-      ];
-
-      patterns.forEach(p => {
-        const isMatch = p.every(offset => {
-          const nR = row + offset[0];
-          const nC = col + offset[1];
-          if (nR < 0 || nR >= 9 || nC < 0 || nC >= 9) return false;
-          const target = this.manager.grid[nR][nC].element;
-          return target.placed && target.player === plyId;
-        });
-        if (isMatch) connections++;
-      });
-      return connections;
-    }
-
+    // 4. FIX: The missing Proximity function
     calculateProximity(row, col) {
       let weight = 0;
       for (let dr = -1; dr <= 1; dr++) {
         for (let dc = -1; dc <= 1; dc++) {
           const nR = row + dr, nC = col + dc;
           if (nR >= 0 && nR < 9 && nC >= 0 && nC < 9) {
-            if (this.manager.grid[nR][nC].element.placed) weight += 5;
+            if (this.manager.grid[nR][nC].element.placed) weight += 10;
           }
         }
       }
       return weight;
+    }
+
+    // 5. Spatial Optimization (Only check moves near active play)
+    getAvailableMoves() {
+      const moves = [];
+      const isBoardEmpty = !this.manager.grid.some(row => row.some(t => t.element.placed));
+
+      for (let r = 0; r < 9; r++) {
+        for (let c = 0; c < 9; c++) {
+          const tile = this.manager.grid[r][c];
+          if (!tile.element.placed) {
+            // Optimization: Only check tiles within 2 spaces of an existing piece
+            if (isBoardEmpty || this.hasNeighbor(r, c, 2)) {
+              moves.push({ r, c, tile });
+            }
+          }
+        }
+      }
+      return moves;
+    }
+
+    hasNeighbor(r, c, dist) {
+      for (let dr = -dist; dr <= dist; dr++) {
+        for (let dc = -dist; dc <= dist; dc++) {
+          const nR = r + dr, nC = c + dc;
+          if (nR >= 0 && nR < 9 && nC >= 0 && nC < 9) {
+            if (this.manager.grid[nR][nC].element.placed) return true;
+          }
+        }
+      }
+      return false;
+    }
+
+    simulatePointCheck(row, col, plyId) {
+      let connections = 0;
+      const patterns = [
+        [[0,-1], [0,-2]], [[0,1], [0,2]], [[0,-1], [0,1]], // H
+        [[1,0], [2,0]], [[-1,0], [-2,0]], [[1,0], [-1,0]], // V
+        [[1,1], [2,2]], [[-1,-1], [-2,-2]], [[1,1], [-1,-1]], // D1
+        [[1,-1], [2,-2]], [[-1,1], [-2,2]], [[1,-1], [-1,1]]  // D2
+      ];
+      patterns.forEach(p => {
+        const match = p.every(off => {
+          const nR = row + off[0], nC = col + off[1];
+          if (nR < 0 || nR >= 9 || nC < 0 || nC >= 9) return false;
+          const target = this.manager.grid[nR][nC].element;
+          return target.placed && target.player === plyId;
+        });
+        if (match) connections++;
+      });
+      return connections;
     }
   }
 
@@ -262,6 +332,13 @@
       this.isBotEnabled = true;
       this.isProcessing = false;
 
+      const depthSelector = document.getElementById('bot-depth');
+      if (depthSelector) {
+        depthSelector.addEventListener('change', (e) => {
+          this.bot.maxDepth = parseInt(e.target.value);
+          this.notify(`Foresight: ${e.target.value} Moves`);
+        });
+      }
 
       this.init();
     }
