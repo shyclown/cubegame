@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3D Cube Game</title>
+
+  <link href='https://fonts.googleapis.com/css?family=Roboto:400,300,100,500&subset=latin,latin-ext' rel='stylesheet'/>
+
+  <link rel="stylesheet" type="text/css" href="cube.css">
+  <link rel="stylesheet" type="text/css" href="game.css">
+  <link rel="stylesheet" type="text/css" href="ui.css">
+</head>
+<body>
+
+<div id="ui">
+  <div id="ui-left" class="ui uileft">
+    <header><h2>Player One</h2></header>
+    <div>score: <span id="score-one" class="score">0</span></div>
+  </div>
+  <div id="ui-right" class="ui uiright">
+    <header><h2>Player Two</h2></header>
+    <div>score: <span id="score-two" class="score">0</span></div>
+  </div>
+</div>
+
+<div id="controls">
+  <div style="margin-left: 500px">
+    <label>Difficulty: </label>
+    <select id="bot-difficulty">
+      <option value="easy">Easy (Random-ish)</option>
+      <option value="hard" selected>Hard (Strategic)</option>
+    </select>
+    <button id="reset-game">Reset Game</button>
+  </div>
+
+  <label for="bot-depth">Bot Foresight:</label>
+  <select id="bot-depth">
+    <option value="1">1 Move (Fast)</option>
+    <option value="2">2 Moves (Smart)</option>
+    <option value="3" selected>3 Moves (Hard)</option>
+    <option value="4">4 Moves (Master - Slow)</option>
+  </select>
+</div>
+
+<div id="gamewrap">
+  <div id="game"></div>
+</div>
+
+<div id="game-messages"></div>
+
+<script src="bundle.js" defer></script>
+
+</body>
+</html>

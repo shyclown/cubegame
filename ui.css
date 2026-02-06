@@ -1,0 +1,41 @@
+/* --- GAME BOARD --- */
+body{
+    margin: 0 auto;
+    background-color: #222;
+}
+/* --- UI --- */
+
+#ui{
+    font-family: 'Roboto',sans-serif;
+    position:absolute;
+    top: 0px;
+    left: 0px;
+    z-index: 10000;
+    width: 100%;
+    .ui{
+        display: block;
+        box-sizing: border-box;
+        padding: 16px;
+        width: 250px;
+        height: 250px;
+        background-color: #EAEAEA;
+    }
+    h2{
+        font-weight: 100;
+    }
+    .uileft{
+        position:absolute;
+        top: 0;
+        left: 0;
+    }
+    .uiright{
+        position:absolute;
+        top: 0;
+        right: 0;
+    }
+}
+.score{
+    font-size: 24px;
+    padding: 16px;
+    color: #09F;
+}

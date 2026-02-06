@@ -1,0 +1,74 @@
+.cube{
+    -webkit-transition: all 450ms ease-in-out;
+    transition: all 450ms ease-in-out;
+    z-index: 9999;
+
+    position: relative;
+    width:52px;
+    height:52px;
+    transform: rotateX(-90deg) translateZ(-52px);
+    transform-origin: bottom center;
+    transform-style: preserve-3d;
+}
+
+.cube {
+    /* Ensure all property transitions are active */
+    transition: transform 450ms ease-in-out, background-image 0.3s ease;
+}
+
+/* This will be applied and then removed after 1000ms */
+.playerOne.scored div {
+    background-image: url('../../side_p.jpg');
+    filter: brightness(1.5) saturate(1.2); /* Added a visual pop effect */
+}
+
+.cube div {
+    position: absolute;
+    width: 52px;
+    height: 52px;
+    background-size: contain;
+    background-repeat: no-repeat;
+}
+
+.playerOne div{background-image: url('../../side_p.jpg');}
+.playerOne.scored div{background-image: url('../../side_p.jpg');}
+.playerTwo div{background-image: url('../../green.jpg');}
+.playerTwo.scored div{background-image: url('../../green_p.jpg');}
+
+.back {
+	transform: translateZ(0px) rotateY(180deg);
+  background-color: green;
+}
+
+.right {
+	transform: rotateY(-270deg) translateX(0px);
+	transform-origin: top right;
+  background-color: blue;
+}
+
+.left {
+	transform: rotateY(270deg) translateX(0px);
+	transform-origin: top left;
+  background-color: green;
+}
+
+.top {
+	transform: rotateX(90deg) translateY(0px);
+	transform-origin: top center;
+  background-color: yellow;
+  transform-style: preserve-3d;
+}
+
+.bottom {
+	transform: rotateX(-90deg) translateY(0px);
+	transform-origin: bottom center;
+    background-color: green;
+}
+.front {
+	transform: translateZ(52px);
+  background-color: orange;
+}
+.top:hover{
+    background-color: white;
+    cursor: pointer;
+}
