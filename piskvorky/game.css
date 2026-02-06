@@ -1,0 +1,47 @@
+body{
+  margin: 0 auto;
+}
+#gamewrap{
+  margin: 0 auto;
+  margin-top: 16px;
+  box-sizing: border-box;
+  display: block;
+  width: 486px;
+  height: 486px;
+  border: none;
+  transform: perspective(650px) rotateX(54deg) rotateZ(-29deg);
+  backface-visibility: visible;
+  transform-style: preserve-3d;
+  background-image: url('floor.jpg');
+  background-size:contain;
+  background-repeat: no-repeat;
+}
+#game{
+  display: block;
+  margin: 0 auto;
+  width: 486px;
+  height: 486px;
+  box-sizing: border-box;
+}
+
+.square{
+position: absolute;
+z-index: 3;
+width: 52px;
+height:52px;
+border: 1px solid #FFF;
+transform-style: preserve-3d;
+}
+.grass{
+pointer-events: none;
+z-index: 60;
+width: 52px;
+height:52px;
+position: absolute;
+transform: rotateX(120deg) rotateY(180deg) translateY(15px) translateZ(22px);
+background-image: url('grass.png');
+background-position:top;
+background-size:contain;
+background-repeat: no-repeat;
+background-origin: border-box;
+}

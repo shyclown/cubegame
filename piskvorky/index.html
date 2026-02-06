@@ -1,0 +1,306 @@
+<html>
+<head>
+  <link href='http://fonts.googleapis.com/css?family=Roboto:400,300,100,500&subset=latin,latin-ext' rel='stylesheet'/>
+  <link rel="stylesheet" type="text/css" href="cube.css">
+  <link rel="stylesheet" type="text/css" href="game.css">
+  <style>
+  #ui{
+    font-family: 'Roboto',sans-serif;
+    position:absolute;
+    top: 0px;
+    left: 0px;
+    z-index: 10000;
+    width: 100%;
+  }
+  #ui > .ui{
+    display: block;
+    box-sizing: border-box;
+    padding: 16px;
+    width: 250px;
+    height: 250px;
+    background-color: #EAEAEA;
+  }
+  #ui  h2{
+    font-weight: 100;
+  }
+  #ui>.uileft{
+    position:absolute;
+    top: 0px;
+    left: 0px;
+  }
+  #ui>.uiright{
+    position:absolute;
+    top: 0px;
+    right: 0px;
+  }
+  .score{
+    font-size: 24px;
+    padding: 16px;
+    color: #09F;
+  }
+  </style>
+</head>
+<body>dddd
+  <div id="ui">
+    <div id="ui-left" class="ui uileft">
+      <header><h2>Player Name</h2></header>
+      <div>score:
+      <span id="score-one" class="score">0</span>
+      </div>
+      </div>
+    <div id="ui-right" class="ui uiright">
+    <header><h2>Player Name</h2></header>
+    <div>score:<span id="score-two" class="score">0</span></div>
+  </div>
+  </div>
+  <div id="gamewrap">
+    <div id="game"></div>
+  </div>
+</body>
+<script>
+function _(id){ return document.getElementById(id); };
+function _make(tag, oClass){ el = document.createElement(tag); el.className = oClass; return el; };
+
+var map = [
+  [1,1,1,1,1,1,1,1,1],
+  [1,1,1,1,1,1,1,1,1],
+  [1,1,1,1,1,1,1,1,1],
+  [1,1,1,1,1,1,1,1,1],
+  [1,1,1,1,1,1,1,1,1],
+  [1,1,1,1,1,1,1,1,1],
+  [1,1,1,1,1,1,1,1,1],
+  [1,1,1,1,1,1,1,1,1],
+  [1,1,1,1,1,1,1,1,1]
+];
+
+var GAMEAPP = GAMEAPP || {};
+
+GAMEAPP.data = {
+  map:{
+    size:9,
+    squares:54
+  },
+  player:{
+    one:{name:'default name', score:0, image:'' },
+    two:{name:'default name', score:0, image:'' }
+  },
+  cubes:[]
+};
+
+GAMEAPP.data.parts = {
+
+}
+// storing squares to gird
+var gird = [];
+
+var gamewrap = _('gamewrap');
+var game = _('game');
+var score_one = _('score-one')
+var rows = map.length;
+var cols = map[0].length;
+var box = 54;
+
+var gamedata = gamedata || {}
+gamedata.prev = '';
+
+gamedata.grass = function(){
+  this.el = _make('div', 'grass');
+}
+
+gamedata.userBox = function(){
+
+  this.box = _make('div', 'cube');
+
+  this.topSide = _make('div', 'top');
+  this.bottomSide = _make('div', 'front');
+  this.backSide = _make('div', 'back');
+  this.frontSide = _make('div', 'left');
+  this.rightSide = _make('div', 'right');
+  this.leftSide = _make('div', 'bottom');
+
+  this.box.appendChild(this.topSide);
+  this.box.appendChild(this.bottomSide);
+  this.box.appendChild(this.leftSide);
+  this.box.appendChild(this.rightSide);
+  this.box.appendChild(this.backSide);
+  this.box.appendChild(this.frontSide);
+  this.topSide.addEventListener('click',this.placeBoxSides.bind(this),false);
+}
+gamedata.userBox.prototype.placeBoxSides = function(e){
+  if(this.topSide.placed){}
+  else
+  {  console.log('s');
+  var self = this;
+  var a = new gamedata.userBox();
+  this.topSide.appendChild(a.box);
+  a.box.setAttribute('style','transform: translateZ(605px);');
+  this.topSide.placed = true;
+  setTimeout(function(){
+  a.box.removeAttribute('style');
+  self.topSide.removeEventListener('click',gamedata.userBox.placeBoxSides,false);
+},200);}
+}
+
+gamedata.player = {
+  points:0
+}
+
+gamedata.checkPoints = function(){
+  console.log(selected);
+  var col = selected.x;
+  var row = selected.y;
+  var ply = selected.square.player;
+  i=0;
+
+  var check = function(r, c){
+    nrow = row + r;
+    ncol = col + c;
+    console.log(i+': '+nrow+'-'+ncol);
+    sqr = gird[nrow][ncol].square;
+    sqr.style.backgroundColor = "#000";
+    if(sqr.placed){
+      nplayer = sqr.player;
+      if(nplayer == ply){ return true; }
+    }
+    i++;
+  }
+  //  [2, -2]         [2, 0]        [2, 2]
+  //          [1, -1] [1, 0] [1, 1] [1, 2]
+  //  [0, -2] [0, -1] [0, 0] [0, 1] [0, 2]
+  //          [-1,-1] [-1,0] [-1,1] [-1,2]
+  //  [-2,-2]         [-2,0]        [-2,2]
+
+  if(col>1){
+  // close points left
+  if(row>1){ if(check(-1,-1) && check(-2,-2)){ gamedata.player.points++ }}
+  if(row<7){ if(check(1,-1) && check(2,-2)){ gamedata.player.points++ }}
+  if(check(0,-1) && check(0,-2)){ gamedata.player.points++ }
+  }
+  if(col<7){
+  // close points right
+  if(row<7){ if(check(1,1) && check(2,2)){ gamedata.player.points++ }}
+  if(row>1){ if(check(-1,1) && check(-2,2)){ gamedata.player.points++ }}
+  if(check(0,1) && check(0,2)){ gamedata.player.points++ }
+  }
+  // up and down
+  if(row<7){if(check(1,0) && check(2,0)){ gamedata.player.points++ }}
+  if(row>1){if(check(-1,0) && check(-2,0)){ gamedata.player.points++ }}
+  // is middle of
+  if(col>0 && col<8){if(check(0,-1) && check(0,1)){ gamedata.player.points++ }}
+  if(row>0 && row<8){if(check(1,0) && check(-1,0)){ gamedata.player.points++ }}
+  if(col>0 && col<8 && row>0 && row<8){
+    //diagonal middle
+    if(check(-1,-1) && check(1,1)){ gamedata.player.points++ }
+    if(check(1,-1) && check(-1,1)){ gamedata.player.points++ }
+  }
+
+
+  score_one.innerHTML = gamedata.player.points;
+
+
+  console.log(gamedata.player.points);
+}
+gamedata.tile = function(x,y){
+  this.x = x;
+  this.y = y;
+  this.z = '';
+  this.oBoxes = 0;
+}
+var selected = {
+  square:'',
+  x:'',
+  y:''
+}
+gamedata.tile.prototype._init = function(){
+  this.square = _make('div','square');
+  game.appendChild(this.square);
+  this.square.style.top = this.y * box;
+  this.square.style.left = this.x * box;
+  //var grass = new gamedata.grass();
+  //this.square.appendChild(grass.el);
+  this.square.addEventListener('mouseover',this.highlight.bind(this),false);
+}
+
+gamedata.placeBox = function(){
+  if(selected.square.placed){}
+  else
+  {
+    var userB = new gamedata.userBox();
+    selected.square.appendChild(userB.box);
+    selected.square.placed = true;
+    selected.square.player = 1;
+    gamedata.checkPoints();
+    userB.box.setAttribute('style','transform: translateZ(605px);');
+    setTimeout(function(){
+    userB.box.removeAttribute('style');
+    },200);
+    selected.square.removeEventListener('click',gamedata.tile.placeBox,false);
+}
+
+}
+
+gamedata.tile.prototype.highlight = function(){
+  if(gamedata.prev != ''){
+  gamedata.prev.style.background = 'none';
+  }
+  selected.x = this.x;
+  selected.y = this.y;
+  selected.square = this.square;
+  this.square.style.backgroundImage = 'url("glow.png")';
+  this.square.style.backgroundSize = 'contain';
+  this.square.style.backgroundRepeat = 'no-repeat';
+  gamedata.prev = this.square;
+}
+
+for(i=0;i < rows; i++){
+  gird[i] = [];
+  for(j=0; j < cols; j++){
+    var square = new gamedata.tile(j,i);
+    square._init();
+    gird[i].push(square);
+  }
+}
+
+var mouse = { x:'',y:'',}
+var camera = {degX:54, degY:-29}
+var camera_new = {degX:'',degY:''}
+
+gamedata.updateCamera = function(){
+  valueX = mouse.x - event.clientX;
+  valueY = mouse.y - event.clientY;
+
+
+  camera_new.degX = camera.degX + valueY;
+  camera_new.degY = camera.degY + valueX;
+
+  if(camera_new.degX > 90){x = 90;}
+  else if(camera_new.degX < 18){x = 18}
+  else{ x = camera_new.degX;}
+  if(camera_new.degY > 45){y = 45;}
+  else if(camera_new.degY < -45){y = -45}
+  else{ y = camera_new.degY;}
+  gamewrap.setAttribute('style','transform:perspective('+(650)+'px) rotateX('+x+'deg)  rotateZ('+y+'deg);');
+  camera_new.degX = x;
+  camera_new.degY = y;
+}
+gamedata.endCameraMovement = function(){
+  window.removeEventListener('mousemove',gamedata.updateCamera,false);
+
+  camera.degX = camera_new.degX;
+  camera.degY = camera_new.degY;
+}
+
+document.addEventListener('mousedown',function(event){
+  if(event.which == 2){
+  mouse.x = event.clientX;
+  mouse.y = event.clientY;
+  window.addEventListener('mousemove',gamedata.updateCamera,false);
+  window.addEventListener('mouseup',gamedata.endCameraMovement,false);
+  };
+},false);
+
+game.addEventListener('click',gamedata.placeBox,false);
+
+</script>
+
+</html>
