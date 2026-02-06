@@ -2,16 +2,17 @@
   margin: 0 auto;
   margin-top: 16px;
   box-sizing: border-box;
-  display: block;
+  display: flex;
+  align-items: flex-end;
+
+  margin-top: 200px;
   width: 486px;
-  height: 486px;
+  height: 100%;
   border: none;
   transform: rotateX(54deg) rotateZ(-29deg);
   backface-visibility: visible;
   transform-style: preserve-3d;
-  background-image: url('floor.jpg');
-  background-size:contain;
-  background-repeat: no-repeat;
+
 }
 
 body {
@@ -25,6 +26,9 @@ body {
   height: 486px;
   box-sizing: border-box;
   transform-style: preserve-3d;
+  background-image: url('floor.jpg');
+  background-size:contain;
+  background-repeat: no-repeat;
 }
 
 .square{

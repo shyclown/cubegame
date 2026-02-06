@@ -5,7 +5,6 @@
   <link rel="stylesheet" type="text/css" href="cube.css">
   <link rel="stylesheet" type="text/css" href="game.css">
   <link rel="stylesheet" type="text/css" href="ui.css">
-
 </head>
 <body>
 <div id="ui">
@@ -20,7 +19,7 @@
     <div>score:<span id="score-two" class="score">0</span></div>
   </div>
 </div>
-<div id="gamewrap">
+<div id="gamewrap" >
   <div id="game"></div>
 </div>
 <div id="game-messages"></div>
@@ -35,6 +34,76 @@
       const el = document.createElement(tag);
       if (className) el.className = className;
       return el;
+    }
+  }
+
+  class GameBot {
+    constructor(manager, playerId) {
+      this.manager = manager;
+      this.playerId = playerId;
+    }
+
+    takeTurn() {
+      const moves = this.getAvailableMoves();
+      if (moves.length === 0) return;
+
+      // Sort moves: highest score first
+      moves.sort((a, b) => b.score - a.score);
+
+      // Pick from the top-tier moves (adds slight variety so it's not 100% predictable)
+      const topScore = moves[0].score;
+      const bestMoves = moves.filter(m => m.score === topScore);
+      const finalMove = bestMoves[Math.floor(Math.random() * bestMoves.length)];
+
+      setTimeout(() => {
+        // Highlight the tile for visual feedback before "clicking"
+        finalMove.tile.highlight();
+        this.manager.placeBox();
+      }, 1000);
+    }
+
+    getAvailableMoves() {
+      const scoredMoves = [];
+      for (let r = 0; r < this.manager.config.rows; r++) {
+        for (let c = 0; c < this.manager.config.cols; c++) {
+          const tile = this.manager.grid[r][c];
+          if (!tile.element.placed) {
+            scoredMoves.push({
+              r, c, tile,
+              score: this.calculateTileWeight(r, c)
+            });
+          }
+        }
+      }
+      return scoredMoves;
+    }
+
+    calculateTileWeight(row, col) {
+      let weight = 0;
+
+      // Check all 8 directions around the tile
+      for (let dr = -1; dr <= 1; dr++) {
+        for (let dc = -1; dc <= 1; dc++) {
+          if (dr === 0 && dc === 0) continue;
+
+          const nr = row + dr;
+          const nc = col + dc;
+
+          // Ensure we stay within the 9x9 grid boundaries
+          if (nr >= 0 && nr < this.manager.config.rows && nc >= 0 && nc < this.manager.config.cols) {
+            const neighbor = this.manager.grid[nr][nc].element;
+
+            if (neighbor.placed) {
+              if (neighbor.player === this.playerId) {
+                weight += 10; // High preference for own clusters
+              } else {
+                weight += 5;  // Moderate preference for blocking/proximity to player
+              }
+            }
+          }
+        }
+      }
+      return weight;
     }
   }
 
@@ -143,6 +212,9 @@
       this.targetY = -29;
       this.ticking = false;
 
+      this.bot = new GameBot(this, 2); // Player 2 is the bot
+      this.isBotEnabled = true;
+
       this.init();
     }
 
@@ -169,8 +241,12 @@
     }
 
     placeBox(targetParent = null) {
+    // Use the tile selected by either mouseover OR the bot logic
       const tile = this.selected.tile;
-      if (!tile || (targetParent === null && tile.element.placed)) return;
+      if (!tile) return;
+
+      // Don't let the bot place on an occupied tile (and vice-versa)
+      if (targetParent === null && tile.element.placed) return;
 
       const parent = targetParent || tile.element;
       const userB = new UserBox(this);
@@ -256,8 +332,12 @@
 
     switchPlayer() {
       this.currentPlayer = this.currentPlayer === 1 ? 2 : 1;
-    }
 
+      // If it's the bot's turn, trigger it
+      if (this.isBotEnabled && this.currentPlayer === 2) {
+        this.bot.takeTurn();
+      }
+    }
     /**
      * Optimized Camera via RequestAnimationFrame
      */
