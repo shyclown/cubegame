@@ -346,10 +346,14 @@ class GameEngine {
 
     private _moveRef?: (e: MouseEvent) => void;
     private _upRef?: () => void;
+    private _mouseDownRef: (e: MouseEvent) => void;
+    private _gameClickRef: () => void;
 
     constructor() {
         this.config = new GameConfig();
         this.bot = new GameBot(this, 2, 'hard');
+        this._mouseDownRef = (e) => this.onMouseDown(e);
+        this._gameClickRef = () => this.placeBox();
         this.setupEventListeners();
         this.init();
     }
@@ -375,6 +379,9 @@ class GameEngine {
                 this.notify(`Foresight: ${this.bot.maxDepth} Moves`);
             });
         }
+
+        document.addEventListener('mousedown', this._mouseDownRef);
+        this.config.dom.game.addEventListener('click', this._gameClickRef);
     }
 
     private init(): void {
@@ -384,8 +391,6 @@ class GameEngine {
                 this.grid[i].push(new Tile(j, i, this.config.boxSize, this));
             }
         }
-        document.addEventListener('mousedown', (e) => this.onMouseDown(e));
-        this.config.dom.game.addEventListener('click', () => this.placeBox());
     }
 
     public notify(text: string, isCombo = false): void {
@@ -428,10 +433,31 @@ class GameEngine {
                 userB.flashScored();
                 winners.forEach((t) => t.currentCube?.flashScored());
             }
-            this.switchPlayer();
             this.isProcessing = false;
-            this.config.dom.game.classList.remove('locked');
+            if (this.isBoardFull()) {
+                this.announceGameOver();
+            } else {
+                this.switchPlayer();
+                this.config.dom.game.classList.remove('locked');
+            }
         }, 200);
+    }
+
+    private isBoardFull(): boolean {
+        return this.grid.every((row) => row.every((t) => t.element.placed));
+    }
+
+    private announceGameOver(): void {
+        const s1 = this.config.players[1].score;
+        const s2 = this.config.players[2].score;
+        if (s1 > s2) {
+            this.notify('Game Over — Player One Wins!');
+        } else if (s2 > s1) {
+            this.notify('Game Over — Player Two Wins!');
+        } else {
+            this.notify('Game Over — Draw!');
+        }
+        this.config.dom.game.classList.add('locked');
     }
 
     private checkPoints(): Tile[] {

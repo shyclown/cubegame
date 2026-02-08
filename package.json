@@ -7,6 +7,9 @@
     "dev": "rollup -c -w",
     "build": "rollup -c",
     "watch": "rollup -c -w",
+    "lint": "eslint src/**/*.ts",
+    "format": "prettier --write src/**/*.ts",
+    "stylelint": "stylelint src/styles/**/*.css",
     "predeploy": "npm run build",
     "deploy": "gh-pages -d dist"
   },

@@ -20,7 +20,7 @@ export default {
             // Moves all CSS from styles folder to dist root
             { src: 'src/styles/*.css', dest: 'dist' },
             // Moves images to dist root
-            { src: 'src/public/*.jpg', dest: 'dist' }
+            { src: 'src/public/*.{jpg,png}', dest: 'dist' }
         ],
         copyOnce: false // Ensures files update when you change them
     }),
