@@ -1,18 +1,18 @@
-/**
- * Custom Types & Interfaces
- */
-interface ExtendedElement extends HTMLDivElement {
+import type { Tile } from './Tile';
+
+export interface ExtendedElement extends HTMLDivElement {
     placed?: boolean;
     player?: number;
 }
 
-interface Move {
+export interface Move {
     r: number;
     c: number;
     tile: Tile;
+    stackTarget?: ExtendedElement;
 }
 
-interface Player {
+export interface Player {
     name: string;
     score: number;
     class: string;
