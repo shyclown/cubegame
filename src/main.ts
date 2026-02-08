@@ -10,6 +10,57 @@ class DomUtils {
     }
 }
 
+const WIN_PATTERNS: number[][][] = [
+    [
+        [0, -1],
+        [0, -2],
+    ],
+    [
+        [0, 1],
+        [0, 2],
+    ],
+    [
+        [0, -1],
+        [0, 1],
+    ],
+    [
+        [1, 0],
+        [2, 0],
+    ],
+    [
+        [-1, 0],
+        [-2, 0],
+    ],
+    [
+        [1, 0],
+        [-1, 0],
+    ],
+    [
+        [1, 1],
+        [2, 2],
+    ],
+    [
+        [-1, -1],
+        [-2, -2],
+    ],
+    [
+        [1, 1],
+        [-1, -1],
+    ],
+    [
+        [1, -1],
+        [2, -2],
+    ],
+    [
+        [-1, 1],
+        [-2, 2],
+    ],
+    [
+        [1, -1],
+        [-1, 1],
+    ],
+];
+
 class GameBot {
     private manager: GameEngine;
     private playerId: number;
@@ -62,6 +113,11 @@ class GameBot {
                 bestScore = score;
                 bestMove = move;
             }
+        }
+
+        if (this.difficulty === 'easy' && moves.length > 1) {
+            const pool = moves.slice(0, Math.min(3, moves.length));
+            bestMove = pool[Math.floor(Math.random() * pool.length)];
         }
 
         setTimeout(() => {
@@ -168,57 +224,7 @@ class GameBot {
 
     private simulatePointCheck(row: number, col: number, plyId: number): number {
         let connections = 0;
-        const patterns = [
-            [
-                [0, -1],
-                [0, -2],
-            ],
-            [
-                [0, 1],
-                [0, 2],
-            ],
-            [
-                [0, -1],
-                [0, 1],
-            ],
-            [
-                [1, 0],
-                [2, 0],
-            ],
-            [
-                [-1, 0],
-                [-2, 0],
-            ],
-            [
-                [1, 0],
-                [-1, 0],
-            ],
-            [
-                [1, 1],
-                [2, 2],
-            ],
-            [
-                [-1, -1],
-                [-2, -2],
-            ],
-            [
-                [1, 1],
-                [-1, -1],
-            ],
-            [
-                [1, -1],
-                [2, -2],
-            ],
-            [
-                [-1, 1],
-                [-2, 2],
-            ],
-            [
-                [1, -1],
-                [-1, 1],
-            ],
-        ];
-        patterns.forEach((p) => {
+        WIN_PATTERNS.forEach((p) => {
             const match = p.every((off) => {
                 const nR = row + off[0],
                     nC = col + off[1];
@@ -357,6 +363,11 @@ class GameEngine {
             });
         }
 
+        const resetBtn = DomUtils.get<HTMLButtonElement>('reset-game');
+        if (resetBtn) {
+            resetBtn.addEventListener('click', () => this.reset());
+        }
+
         const depthSelector = DomUtils.get<HTMLSelectElement>('bot-depth');
         if (depthSelector) {
             depthSelector.addEventListener('change', (e) => {
@@ -436,50 +447,7 @@ class GameEngine {
             return t.element.placed && t.element.player === ply ? t : null;
         };
 
-        const patterns = [
-            [
-                [0, -1],
-                [0, -2],
-            ],
-            [
-                [0, 1],
-                [0, 2],
-            ],
-            [
-                [1, 0],
-                [2, 0],
-            ],
-            [
-                [-1, 0],
-                [-2, 0],
-            ],
-            [
-                [1, 1],
-                [2, 2],
-            ],
-            [
-                [-1, -1],
-                [-2, -2],
-            ],
-            [
-                [1, -1],
-                [2, -2],
-            ],
-            [
-                [-1, 1],
-                [-2, 2],
-            ],
-            [
-                [0, -1],
-                [0, 1],
-            ],
-            [
-                [1, 0],
-                [-1, 0],
-            ],
-        ];
-
-        patterns.forEach((p) => {
+        WIN_PATTERNS.forEach((p) => {
             const t1 = getTile(p[0][0], p[0][1]);
             const t2 = getTile(p[1][0], p[1][1]);
             if (t1 && t2) {
@@ -507,6 +475,26 @@ class GameEngine {
         } else {
             this.config.dom.game.classList.remove('locked');
         }
+    }
+
+    public reset(): void {
+        this.config.dom.game.innerHTML = '';
+        this.grid = [];
+        for (let i = 0; i < this.config.rows; i++) {
+            this.grid[i] = [];
+            for (let j = 0; j < this.config.cols; j++) {
+                this.grid[i].push(new Tile(j, i, this.config.boxSize, this));
+            }
+        }
+        this.config.players[1].score = 0;
+        this.config.players[2].score = 0;
+        this.currentPlayer = 1;
+        this.isProcessing = false;
+        this.prevSelectedTile = null;
+        this.selected = { x: 0, y: 0, tile: null };
+        this.config.dom.game.classList.remove('locked');
+        this.updateUI();
+        this.notify('Game Reset!');
     }
 
     private onMouseDown(e: MouseEvent): void {
