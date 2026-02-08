@@ -4,148 +4,113 @@ A strategic 3D tic-tac-toe game built with TypeScript featuring an intelligent A
 
 ## Overview
 
-Piskvorky (Czech for "Five in a Row") is a browser-based strategy game where you compete against an AI bot on a 9x9 grid. The game features stunning 3D cube visualizations using CSS transforms and an intelligent bot powered by the minimax algorithm with alpha-beta pruning.
+Piskvorky (Czech for "Five in a Row") is a browser-based strategy game where you compete against an AI bot on a 9x9 grid. The game features 3D cube visualizations using CSS transforms and an intelligent bot powered by the minimax algorithm with alpha-beta pruning.
 
 ## Features
 
-- **3D Interactive Board**: Beautiful 3D cube-based game board with CSS transforms
-- **Smart AI Opponent**: Challenging bot using minimax algorithm with configurable difficulty
-- **Adjustable Difficulty**:
-  - Easy mode (random-ish moves)
-  - Hard mode (strategic play)
-  - Configurable foresight depth (1-4 moves ahead)
-- **Camera Controls**: Rotate the board view using middle-click and drag
-- **Score Tracking**: Real-time score updates for both players
-- **Combo Detection**: Earn bonus points for multiple winning patterns in a single move
-- **Smooth Animations**: Cube placement animations and visual feedback
+- **3D Interactive Board**: Cube-based game board rendered with CSS 3D transforms
+- **Smart AI Opponent**: Bot using minimax algorithm with alpha-beta pruning and memoization
+- **Adjustable Difficulty**: Easy mode (random moves) and Hard mode (strategic play) with configurable search depth (1-4 moves ahead)
+- **Camera Controls**: Middle-click and drag to rotate the board view
+- **Score Tracking**: Real-time score display for both players
+- **Combo Detection**: Bonus points for multiple winning patterns in a single move
+- **Stacking**: Place cubes on top of existing ones for 3D layer gameplay
+- **39 Win Patterns**: Horizontal, vertical, diagonal, and cross-layer 3-in-a-row patterns
 
-## Game Rules
+## How to Play
 
-The objective is to create patterns of 3 cubes in a row on the 9x9 grid. You score points by:
-- Placing a cube that completes a pattern of 3 in a row
-- Patterns can be horizontal, vertical, or diagonal
-- Multiple patterns from a single placement earn combo bonuses
+1. **Place a Cube** - Click any empty square on the 9x9 grid
+2. **Stack Cubes** - Click the top of an existing cube to stack another layer
+3. **Rotate View** - Middle-click and drag to orbit the camera
+4. **Adjust Difficulty** - Use the dropdown selectors for bot difficulty and search depth
+5. **Score Points** - Complete patterns of 3 in a row (horizontal, vertical, diagonal, or across layers)
+6. **Watch for Combos** - A single move completing multiple patterns scores bonus points
 
-The AI bot takes Player Two and will automatically make moves after your turn.
+The AI bot plays as Player Two and moves automatically after your turn.
 
 ## Installation
 
 ### Prerequisites
 
 - Node.js (v14 or higher)
-- npm or yarn
+- npm
 
 ### Setup
 
-1. Clone the repository:
 ```bash
 git clone https://github.com/shyclown/cubegame.git
 cd piskvorky
-```
-
-2. Install dependencies:
-```bash
 npm install
 ```
 
-## Usage
+## Development
 
-### Development Mode
-
-Run the development server with hot reload:
 ```bash
-npm run dev
+npm run dev       # Start dev server with live reload
+npm run build     # Production build to dist/
+npm run test      # Run tests (Vitest)
+npm run lint      # Lint TypeScript with ESLint
+npm run format    # Format code with Prettier
+npm run stylelint # Lint CSS with Stylelint
+npm run deploy    # Build and deploy to GitHub Pages
 ```
-
-This will:
-- Start a local server at `http://localhost:3000`
-- Automatically open your browser
-- Watch for file changes and reload
-
-### Production Build
-
-Build the project for production:
-```bash
-npm run build
-```
-
-The compiled files will be in the `dist/` directory.
-
-### Deploy to GitHub Pages
-
-Deploy your game to GitHub Pages:
-```bash
-npm run deploy
-```
-
-## How to Play
-
-1. **Place a Cube**: Click on any empty square to place your cube
-2. **Stack Cubes**: Click on the top of an existing cube to stack another cube on it
-3. **Rotate View**: Middle-click and drag to rotate the camera and view the board from different angles
-4. **Adjust Difficulty**: Use the controls to change the bot's difficulty and foresight depth
-5. **Score Points**: Create patterns of 3 in a row to score points
-6. **Watch for Combos**: A single move can create multiple patterns for bonus points
 
 ## Project Structure
 
 ```
-piskvorky/
-├── src/
-│   ├── main.ts           # Main game logic and classes
-│   ├── types.ts          # TypeScript type definitions
-│   ├── index.html        # HTML structure
-│   ├── styles/
-│   │   ├── game.css      # Game board styling
-│   │   ├── cube.css      # 3D cube styling
-│   │   └── ui.css        # UI and controls styling
-│   └── public/
-│       └── *.jpg         # Texture images
-├── dist/                 # Compiled output (generated)
-├── rollup.config.mjs     # Rollup bundler configuration
-├── tsconfig.json         # TypeScript configuration
-└── package.json          # Project dependencies
+src/
+├── main.ts           # Entry point - creates GameEngine instance
+├── GameEngine.ts     # Core game controller: state, turns, scoring, camera
+├── GameBot.ts        # AI opponent: minimax with alpha-beta pruning
+├── Tile.ts           # Grid square: hover, highlight, cube management
+├── UserBox.ts        # 3D cube element: rendering, stacking, animations
+├── GameConfig.ts     # DOM references and player configuration
+├── DomUtils.ts       # DOM helper utilities
+├── patterns.ts       # WIN_PATTERNS constant (39 three-in-a-row patterns)
+├── types.ts          # TypeScript interfaces (ExtendedElement, Move, Player)
+├── index.html        # HTML structure
+├── styles/
+│   ├── game.css      # Game board and layout styling
+│   ├── cube.css      # 3D cube transforms and animations
+│   └── ui.css        # Controls and UI styling
+└── public/           # Texture images (floor, glow, grass, green, side)
+tests/
+└── game.test.ts      # Game engine tests (Vitest + jsdom)
 ```
 
-## Technologies Used
-
-- **TypeScript**: Type-safe game logic
-- **Rollup**: Module bundler with plugins for:
-  - TypeScript compilation
-  - Live reload
-  - Local development server
-  - Asset copying
-- **CSS3**: 3D transforms and animations
-- **Minimax Algorithm**: AI decision making with alpha-beta pruning
-- **GitHub Pages**: Deployment platform
-
-## Game Architecture
+## Architecture
 
 ### Core Classes
 
-- **GameEngine**: Main game controller managing game state, player turns, and board updates
-- **GameBot**: AI opponent implementing minimax algorithm with strategic move evaluation
-- **Tile**: Represents each square on the 9x9 grid
-- **UserBox**: 3D cube element with placement and stacking logic
-- **GameConfig**: Game configuration and DOM references
+- **GameEngine** - Central controller: manages 9x9 grid of Tiles, player turns, scoring via pattern matching, camera drag rotation, and bot integration
+- **GameBot** - AI player: minimax with alpha-beta pruning, memoized board evaluation, configurable depth, offensive (2x weight) + defensive scoring heuristics
+- **Tile** - Grid square: owns its DOM element, handles hover/highlight state, manages a stack of UserBox cubes
+- **UserBox** - 3D cube: six-sided CSS 3D element with drop animation and player-specific textures
+- **GameConfig** - Holds DOM element references and player data (names, scores, CSS classes)
+- **DomUtils** - Static helpers for DOM queries and element creation
+
+### Win Pattern System
+
+39 patterns check for three-in-a-row:
+- 12 same-layer patterns (horizontal, vertical, diagonal within a single layer)
+- 27 cross-layer patterns (combinations spanning stacked cube layers)
+
+Each pattern is defined as relative offsets from a placed position. Multiple pattern matches on a single move trigger combo scoring.
 
 ### AI Strategy
 
-The bot uses:
-- **Minimax algorithm** with alpha-beta pruning for efficient decision trees
-- **Position evaluation** based on:
-  - Offensive opportunities (completing patterns)
-  - Defensive needs (blocking opponent patterns)
-  - Strategic positioning (weighted scoring)
-- **Memoization** to cache evaluated board states
-- **Smart move filtering** to prioritize moves near existing pieces
+The bot evaluates moves by:
+1. Pre-sorting candidate moves by combined offensive (2x weight) + defensive value
+2. Running minimax with alpha-beta pruning to the configured depth
+3. Caching board state evaluations via memoization for performance
 
-## Development Scripts
+## Technologies
 
-- `npm run dev` - Start development server with watch mode
-- `npm run build` - Build for production
-- `npm run watch` - Watch mode without server
-- `npm run deploy` - Deploy to GitHub Pages
+- **TypeScript** - Type-safe game logic
+- **Rollup** - Bundler with TypeScript compilation, live reload, dev server, and asset copying
+- **Vitest** - Test runner with jsdom environment
+- **CSS 3D Transforms** - Board and cube rendering
+- **GitHub Pages** - Deployment target
 
 ## License
 
@@ -154,7 +119,3 @@ ISC
 ## Author
 
 Created by shyclown
-
-## Contributing
-
-Contributions are welcome! Feel free to open issues or submit pull requests.
