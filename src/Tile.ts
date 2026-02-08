@@ -8,6 +8,7 @@ export class Tile {
     public y: number;
     private manager: GameEngine;
     public currentCube: UserBox | null = null;
+    public layers: { player: number; cube: UserBox }[] = [];
     public element: ExtendedElement;
 
     constructor(x: number, y: number, size: number, manager: GameEngine) {

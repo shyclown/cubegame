@@ -9,6 +9,7 @@
     "watch": "rollup -c -w",
     "lint": "eslint src/**/*.ts",
     "format": "prettier --write src/**/*.ts",
+    "test": "vitest run",
     "stylelint": "stylelint src/styles/**/*.css",
     "predeploy": "npm run build",
     "deploy": "gh-pages -d dist"
@@ -31,6 +32,7 @@
     "@typescript-eslint/parser": "^8.54.0",
     "eslint": "^9.39.2",
     "gh-pages": "^6.3.0",
+    "jsdom": "^28.0.0",
     "prettier": "^3.8.1",
     "rollup": "^4.57.1",
     "rollup-plugin-copy": "^3.5.0",
@@ -39,6 +41,7 @@
     "stylelint": "^17.1.1",
     "stylelint-config-standard": "^40.0.0",
     "tslib": "^2.8.1",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.18"
   }
 }

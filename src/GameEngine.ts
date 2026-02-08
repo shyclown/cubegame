@@ -84,6 +84,7 @@ export class GameEngine {
 
         const tile = this.selected.tile;
         if (!tile || (targetParent === null && tile.element.placed)) return;
+        if (targetParent !== null && tile.layers.length >= 3) return;
 
         this.isProcessing = true;
         this.config.dom.game.classList.add('locked');
@@ -95,9 +96,11 @@ export class GameEngine {
         parent.placed = true;
         parent.player = this.currentPlayer;
 
-        if (!targetParent) tile.currentCube = userB;
+        tile.currentCube = userB;
+        tile.layers.push({ player: this.currentPlayer, cube: userB });
+        const layer = tile.layers.length - 1;
 
-        const winners = this.checkPoints();
+        const winners = this.checkPoints(layer);
         if (winners.length > 0) {
             this.notify(winners.length / 2 > 1 ? 'COMBO!' : '+1 Point!');
         }
@@ -108,7 +111,7 @@ export class GameEngine {
             userB.el.style.transform = '';
             if (winners.length > 0) {
                 userB.flashScored();
-                winners.forEach((t) => t.currentCube?.flashScored());
+                winners.forEach((cube) => cube.flashScored());
             }
             this.isProcessing = false;
             if (this.isBoardFull()) {
@@ -137,24 +140,27 @@ export class GameEngine {
         this.config.dom.game.classList.add('locked');
     }
 
-    private checkPoints(): Tile[] {
+    private checkPoints(layer: number): UserBox[] {
         const { x: col, y: row } = this.selected;
         const ply = this.currentPlayer;
-        const contributors: Tile[] = [];
+        const contributors: UserBox[] = [];
 
-        const getTile = (r: number, c: number): Tile | null => {
+        const getCube = (r: number, c: number, dl: number): UserBox | null => {
             const nR = row + r,
-                nC = col + c;
+                nC = col + c,
+                nL = layer + dl;
             if (nR < 0 || nR >= this.config.rows || nC < 0 || nC >= this.config.cols) return null;
+            if (nL < 0 || nL >= 3) return null;
             const t = this.grid[nR][nC];
-            return t.element.placed && t.element.player === ply ? t : null;
+            const tileLayer = t.layers[nL];
+            return tileLayer && tileLayer.player === ply ? tileLayer.cube : null;
         };
 
         WIN_PATTERNS.forEach((p) => {
-            const t1 = getTile(p[0][0], p[0][1]);
-            const t2 = getTile(p[1][0], p[1][1]);
-            if (t1 && t2) {
-                contributors.push(t1, t2);
+            const c1 = getCube(p[0][0], p[0][1], p[0][2]);
+            const c2 = getCube(p[1][0], p[1][1], p[1][2]);
+            if (c1 && c2) {
+                contributors.push(c1, c2);
                 this.config.players[ply].score++;
             }
         });

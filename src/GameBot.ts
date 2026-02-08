@@ -34,10 +34,12 @@ export class GameBot {
         if (moves.length === 0) return;
 
         moves.sort((a, b) => {
-            const aOff = this.simulatePointCheck(a.r, a.c, this.playerId);
-            const aDef = this.simulatePointCheck(a.r, a.c, this.opponentId);
-            const bOff = this.simulatePointCheck(b.r, b.c, this.playerId);
-            const bDef = this.simulatePointCheck(b.r, b.c, this.opponentId);
+            const aLayer = a.stackTarget ? a.tile.layers.length : 0;
+            const bLayer = b.stackTarget ? b.tile.layers.length : 0;
+            const aOff = this.simulatePointCheck(a.r, a.c, this.playerId, aLayer);
+            const aDef = this.simulatePointCheck(a.r, a.c, this.opponentId, aLayer);
+            const bOff = this.simulatePointCheck(b.r, b.c, this.playerId, bLayer);
+            const bDef = this.simulatePointCheck(b.r, b.c, this.opponentId, bLayer);
             return bOff * 2 + bDef - (aOff * 2 + aDef);
         });
 
@@ -49,8 +51,10 @@ export class GameBot {
             let score: number;
 
             if (isStack) {
+                const stackLayer = move.tile.layers.length;
                 score = this.minimax(this.maxDepth - 1, false, -Infinity, Infinity);
-                score += this.simulatePointCheck(move.r, move.c, this.playerId) * 1000;
+                score +=
+                    this.simulatePointCheck(move.r, move.c, this.playerId, stackLayer) * 1000;
             } else {
                 move.tile.element.placed = true;
                 move.tile.element.player = this.playerId;
@@ -144,10 +148,12 @@ export class GameBot {
                     includeStacks &&
                     tile.element.placed &&
                     tile.currentCube &&
+                    tile.layers.length < 3 &&
                     !tile.currentCube.sideElements.top.placed
                 ) {
-                    const off = this.simulatePointCheck(r, c, this.playerId);
-                    const def = this.simulatePointCheck(r, c, this.opponentId);
+                    const nextLayer = tile.layers.length;
+                    const off = this.simulatePointCheck(r, c, this.playerId, nextLayer);
+                    const def = this.simulatePointCheck(r, c, this.opponentId, nextLayer);
                     if (off > 0 || def > 0) {
                         moves.push({
                             r,
@@ -187,15 +193,28 @@ export class GameBot {
         return false;
     }
 
-    private simulatePointCheck(row: number, col: number, plyId: number): number {
+    private simulatePointCheck(
+        row: number,
+        col: number,
+        plyId: number,
+        layer: number = 0,
+    ): number {
         let connections = 0;
         WIN_PATTERNS.forEach((p) => {
             const match = p.every((off) => {
                 const nR = row + off[0],
-                    nC = col + off[1];
+                    nC = col + off[1],
+                    nL = layer + off[2];
                 if (nR < 0 || nR >= 9 || nC < 0 || nC >= 9) return false;
-                const target = this.manager.grid[nR][nC].element;
-                return target.placed && target.player === plyId;
+                if (nL < 0 || nL >= 3) return false;
+                const tile = this.manager.grid[nR][nC];
+                if (tile.layers[nL]) {
+                    return tile.layers[nL].player === plyId;
+                }
+                if (nL === 0) {
+                    return tile.element.placed && tile.element.player === plyId;
+                }
+                return false;
             });
             if (match) connections++;
         });
