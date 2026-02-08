@@ -17,12 +17,12 @@
 }
 
 /* This will be applied and then removed after 1000ms */
-.playerOne.scored div {
+.playerOne.scored > div {
     background-image: url('../../side_p.jpg');
     filter: brightness(1.5) saturate(1.2); /* Added a visual pop effect */
 }
 
-.cube div {
+.cube > div {
     position: absolute;
     width: 52px;
     height: 52px;
@@ -30,10 +30,10 @@
     background-repeat: no-repeat;
 }
 
-.playerOne div{background-image: url('../../side_p.jpg');}
-.playerOne.scored div{background-image: url('../../side_p.jpg');}
-.playerTwo div{background-image: url('../../green.jpg');}
-.playerTwo.scored div{background-image: url('../../green_p.jpg');}
+.playerOne > div{background-image: url('../../side_p.jpg');}
+.playerOne.scored > div{background-image: url('../../side_p.jpg');}
+.playerTwo > div{background-image: url('../../green.jpg');}
+.playerTwo.scored > div{background-image: url('../../green_p.jpg');}
 
 .back {
 	transform: translateZ(0px) rotateY(180deg);
